@@ -9,7 +9,8 @@ def test_source_result_defaults():
 
 
 def test_count_reflects_items():
-    r = SourceResult(name="web", items=[object(), object()], health=Health.OK)
+    items = [_item("https://a.com/1", 1), _item("https://a.com/2", 2)]
+    r = SourceResult(name="web", items=items, health=Health.OK)
     assert r.count == 2
 
 
