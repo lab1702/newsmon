@@ -11,3 +11,36 @@ def test_source_result_defaults():
 def test_count_reflects_items():
     r = SourceResult(name="web", items=[object(), object()], health=Health.OK)
     assert r.count == 2
+
+
+from datetime import datetime, timedelta, timezone
+
+from newsmon.aggregator import merge_items
+from newsmon.models import NewsItem
+
+NOW = datetime(2026, 6, 9, 12, 0, tzinfo=timezone.utc)
+
+
+def _item(url, minutes_ago, source="web"):
+    return NewsItem(
+        source=source,
+        title=url,
+        url=url,
+        published=NOW - timedelta(minutes=minutes_ago),
+    )
+
+
+def test_merge_filters_old_dedups_and_sorts_newest_first():
+    results = [
+        SourceResult("web", [_item("https://a.com/1", 10), _item("https://a.com/2", 600)], Health.OK),
+        SourceResult("hn", [_item("https://a.com/1?utm_source=hn", 5, "hn"), _item("https://b.com/3", 1, "hn")], Health.OK),
+    ]
+    since = NOW - timedelta(hours=6)
+    merged = merge_items(results, since)
+    urls = [i.url for i in merged]
+    # b.com/3 (1m) newest, then a.com/1 (kept first occurrence, 10m), a.com/2 dropped (10h old)
+    assert urls == ["https://b.com/3", "https://a.com/1"]
+
+
+def test_merge_handles_empty():
+    assert merge_items([], NOW) == []
