@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import asyncio
 from datetime import datetime
 
 from newsmon.health import SourceResult
 from newsmon.models import NewsItem
+from newsmon.sources.base import safe_fetch
 
 
 def merge_items(results: list[SourceResult], since: datetime) -> list[NewsItem]:
@@ -40,3 +42,18 @@ class SeenTracker:
                     new.append(item)
         self._baseline_set = True
         return new
+
+
+async def poll_sources(
+    sources,
+    client,
+    topic: str,
+    since: datetime,
+    timeout: float,
+    slow_after: float,
+):
+    """Fetch every source concurrently; one result per source, never raising."""
+    tasks = [
+        safe_fetch(s, client, topic, since, timeout, slow_after) for s in sources
+    ]
+    return await asyncio.gather(*tasks)

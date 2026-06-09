@@ -61,3 +61,25 @@ def test_seen_tracker_reports_only_unseen_after_baseline():
     tracker.mark_new([_item("https://a.com/1", 1)])
     new = tracker.mark_new([_item("https://a.com/2", 0), _item("https://a.com/1", 1)])
     assert [i.url for i in new] == ["https://a.com/2"]
+
+
+from newsmon.aggregator import poll_sources
+
+
+class _Src:
+    def __init__(self, name, items):
+        self.name = name
+        self._items = items
+
+    async def fetch(self, client, topic, since):
+        return self._items
+
+
+async def test_poll_sources_returns_result_per_source():
+    sources = [
+        _Src("web", [_item("https://a.com/1", 1)]),
+        _Src("hn", [_item("https://b.com/2", 2, "hn")]),
+    ]
+    results = await poll_sources(sources, None, "quake", NOW, timeout=2, slow_after=10)
+    assert {r.name for r in results} == {"web", "hn"}
+    assert all(r.health is Health.OK for r in results)
