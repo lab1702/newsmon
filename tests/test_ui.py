@@ -29,6 +29,33 @@ def test_render_sidebar_shows_health_and_counts():
     assert "✅" in text and "❌" in text
 
 
+def test_render_sidebar_numbers_each_source():
+    results = [
+        SourceResult("web", [object()], Health.OK),
+        SourceResult("hn", [], Health.OK),
+    ]
+    text = render_sidebar(results, new_count=0, enabled={"web", "hn"})
+    # each source is prefixed with its 1-based toggle key
+    assert "1 " in text and "web" in text
+    assert "2 " in text and "hn" in text
+    # nothing disabled → no dim markup
+    assert "[dim]" not in text
+
+
+def test_render_sidebar_dims_disabled_source():
+    results = [
+        SourceResult("web", [object()], Health.OK),
+        SourceResult("x", [object()], Health.OK),
+    ]
+    text = render_sidebar(results, new_count=0, enabled={"web"})
+    lines = text.splitlines()
+    web_line = next(line for line in lines if "web" in line)
+    x_line = next(line for line in lines if "x " in line and "web" not in line)
+    # enabled source is rendered plainly; disabled one is dimmed and marked off
+    assert "[dim]" not in web_line
+    assert "[dim]" in x_line and "off" in x_line
+
+
 import pytest
 
 from newsmon.ui import is_browsable_url

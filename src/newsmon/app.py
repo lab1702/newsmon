@@ -6,6 +6,7 @@ from datetime import datetime, timedelta, timezone
 import httpx
 from rich.text import Text
 from textual.app import App, ComposeResult
+from textual.binding import Binding
 from textual.containers import Horizontal
 from textual.widgets import DataTable, Footer, Header, Static
 
@@ -29,6 +30,10 @@ class NewsmonApp(App):
         ("r", "refresh", "Refresh"),
         ("enter", "open", "Open"),
         ("y", "copy", "Copy URL"),
+    ] + [
+        # Digit keys toggle the Nth active source (see sidebar); hidden from footer.
+        Binding(str(n), f"toggle_source({n})", f"Toggle source {n}", show=False)
+        for n in range(1, 10)
     ]
 
     def __init__(self, config: Config) -> None:
@@ -38,7 +43,10 @@ class NewsmonApp(App):
         self.tracker = SeenTracker()
         self.new_count = 0
         self._new_keys: set[str] = set()
+        self.enabled: set[str] = {s.name for s in self.sources}
         self.items: list[NewsItem] = []
+        self._all_items: list[NewsItem] = []
+        self._latest_results: list = []
         self._client: httpx.AsyncClient | None = None
 
     def compose(self) -> ComposeResult:
@@ -72,11 +80,27 @@ class NewsmonApp(App):
         merged = merge_items(results, since)
         new = self.tracker.mark_new(merged)
         self.new_count += len(new)
-        self.items = merged
         self._new_keys = {item.dedup_key for item in new}
-        self._render(results)
+        self._all_items = merged
+        self._latest_results = results
+        self._refresh_view()
         if new and self.config.bell:
             self.bell()
+
+    def _refresh_view(self) -> None:
+        """Apply the source filter to the last poll and re-render (no network)."""
+        self.items = [i for i in self._all_items if i.source in self.enabled]
+        self._render(self._latest_results)
+
+    def action_toggle_source(self, n: int) -> None:
+        if not 1 <= n <= len(self.sources):
+            return
+        name = self.sources[n - 1].name
+        if name in self.enabled:
+            self.enabled.discard(name)
+        else:
+            self.enabled.add(name)
+        self._refresh_view()
 
     def _render(self, results) -> None:
         table = self.query_one("#stream", DataTable)
@@ -87,7 +111,7 @@ class NewsmonApp(App):
             cell = Text(title, style="bold yellow") if item.dedup_key in self._new_keys else title
             table.add_row(icon, when, cell)
         self.query_one("#sidebar", Static).update(
-            render_sidebar(results, self.new_count)
+            render_sidebar(results, self.new_count, self.enabled)
         )
 
     def _selected_item(self):

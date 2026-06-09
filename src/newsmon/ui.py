@@ -30,9 +30,18 @@ def format_row(item: NewsItem, tz: tzinfo) -> tuple[str, str, str]:
     return icon, when, item.title
 
 
-def render_sidebar(results: list[SourceResult], new_count: int) -> str:
+def render_sidebar(
+    results: list[SourceResult],
+    new_count: int,
+    enabled: set[str] | None = None,
+) -> str:
+    """Render the sidebar. Each source is prefixed with its 1-based toggle key;
+    sources not in `enabled` are dimmed and marked "off" (None means all on)."""
     lines = [f"🔴 {new_count} new", ""]
-    for result in results:
+    for idx, result in enumerate(results, 1):
         health = _HEALTH_ICONS.get(result.health, "?")
-        lines.append(f"{health} {result.name:<7} {result.count}")
+        line = f"{idx} {health} {result.name:<7} {result.count}"
+        if enabled is not None and result.name not in enabled:
+            line = f"[dim]{line}  off[/dim]"
+        lines.append(line)
     return "\n".join(lines)
