@@ -1,0 +1,26 @@
+{
+  "data": {
+    "searchFor": {
+      "channels": {
+        "edges": [
+          {
+            "item": {
+              "login": "newsnow",
+              "displayName": "NewsNow",
+              "broadcastSettings": {"title": "Live quake coverage"},
+              "stream": {"id": "s1", "viewersCount": 5400, "createdAt": "2026-06-09T11:50:00Z"}
+            }
+          },
+          {
+            "item": {
+              "login": "offlineguy",
+              "displayName": "OfflineGuy",
+              "broadcastSettings": {"title": "Was talking quakes"},
+              "stream": null
+            }
+          }
+        ]
+      }
+    }
+  }
+}
