@@ -121,6 +121,11 @@ class NewsmonApp(App):
             return None
         return self.items[row]
 
+    def on_data_table_row_selected(self, event: DataTable.RowSelected) -> None:
+        # The focused DataTable consumes Enter (and click) as a row selection,
+        # shadowing the App-level "enter" binding — so open from this message.
+        self.action_open()
+
     def action_open(self) -> None:
         item = self._selected_item()
         if item is None:
