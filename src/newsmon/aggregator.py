@@ -21,3 +21,22 @@ def merge_items(results: list[SourceResult], since: datetime) -> list[NewsItem]:
             out.append(item)
     out.sort(key=lambda i: i.published, reverse=True)
     return out
+
+
+class SeenTracker:
+    """Tracks dedup keys across polls; the first poll establishes the baseline."""
+
+    def __init__(self) -> None:
+        self._seen: set[str] = set()
+        self._baseline_set = False
+
+    def mark_new(self, items: list[NewsItem]) -> list[NewsItem]:
+        new: list[NewsItem] = []
+        for item in items:
+            key = item.dedup_key
+            if key not in self._seen:
+                self._seen.add(key)
+                if self._baseline_set:
+                    new.append(item)
+        self._baseline_set = True
+        return new

@@ -44,3 +44,20 @@ def test_merge_filters_old_dedups_and_sorts_newest_first():
 
 def test_merge_handles_empty():
     assert merge_items([], NOW) == []
+
+
+from newsmon.aggregator import SeenTracker
+
+
+def test_seen_tracker_first_poll_marks_nothing_new():
+    tracker = SeenTracker()
+    items = [_item("https://a.com/1", 1), _item("https://a.com/2", 2)]
+    new = tracker.mark_new(items)
+    assert new == []  # first poll is the baseline
+
+
+def test_seen_tracker_reports_only_unseen_after_baseline():
+    tracker = SeenTracker()
+    tracker.mark_new([_item("https://a.com/1", 1)])
+    new = tracker.mark_new([_item("https://a.com/2", 0), _item("https://a.com/1", 1)])
+    assert [i.url for i in new] == ["https://a.com/2"]
