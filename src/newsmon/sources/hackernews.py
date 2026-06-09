@@ -38,7 +38,12 @@ class HackerNewsSource:
     name = NAME
 
     async def fetch(self, client, topic: str, since: datetime) -> list[NewsItem]:
-        params = {"query": topic, "tags": "story", "hitsPerPage": 50}
+        params = {
+            "query": topic,
+            "tags": "story",
+            "hitsPerPage": 50,
+            "numericFilters": f"created_at_i>{int(since.timestamp())}",
+        }
         resp = await client.get(ENDPOINT, params=params)
         resp.raise_for_status()
         return parse_hackernews(resp.text)
