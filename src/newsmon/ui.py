@@ -1,9 +1,16 @@
 from __future__ import annotations
 
 from datetime import datetime, tzinfo
+from urllib.parse import urlsplit
 
 from newsmon.health import Health, SourceResult
 from newsmon.models import NewsItem
+
+def is_browsable_url(url: str) -> bool:
+    """True only for http/https URLs with a host — safe to hand to the OS browser."""
+    parts = urlsplit(url)
+    return parts.scheme in ("http", "https") and bool(parts.netloc)
+
 
 SOURCE_ICONS = {
     "web": "📰",

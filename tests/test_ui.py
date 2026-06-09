@@ -1,3 +1,5 @@
+import pytest
+
 from datetime import datetime, timezone
 
 from newsmon.health import Health, SourceResult
@@ -25,3 +27,24 @@ def test_render_sidebar_shows_health_and_counts():
     assert "3 new" in text
     assert "web" in text and "x" in text
     assert "✅" in text and "❌" in text
+
+
+import pytest
+
+from newsmon.ui import is_browsable_url
+
+
+@pytest.mark.parametrize(
+    "url,ok",
+    [
+        ("https://example.com/a", True),
+        ("http://example.com", True),
+        ("file:///etc/passwd", False),
+        ("javascript:alert(1)", False),
+        ("", False),
+        ("https://", False),
+        ("ftp://example.com/x", False),
+    ],
+)
+def test_is_browsable_url(url, ok):
+    assert is_browsable_url(url) is ok

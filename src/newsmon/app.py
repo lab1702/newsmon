@@ -12,7 +12,7 @@ from newsmon.aggregator import SeenTracker, merge_items, poll_sources
 from newsmon.cli import Config
 from newsmon.models import NewsItem
 from newsmon.sources import build_sources
-from newsmon.ui import format_row, render_sidebar
+from newsmon.ui import format_row, is_browsable_url, render_sidebar
 
 REQUEST_TIMEOUT = 15.0
 SLOW_AFTER = 8.0
@@ -95,8 +95,12 @@ class NewsmonApp(App):
 
     def action_open(self) -> None:
         item = self._selected_item()
-        if item is not None:
+        if item is None:
+            return
+        if is_browsable_url(item.url):
             webbrowser.open(item.url)
+        else:
+            self.notify(f"Refused to open unsafe URL: {item.url}", severity="warning")
 
     def action_copy(self) -> None:
         item = self._selected_item()
