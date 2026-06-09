@@ -7,7 +7,7 @@ from datetime import datetime, timedelta, timezone
 from newsmon.models import NewsItem
 
 NAME = "youtube"
-# sp=CAI%253D requests results sorted by upload date (newest first)
+# sp="CAI=" → encoded to sp=CAI%3D on the wire, which sorts results by upload date
 ENDPOINT = "https://www.youtube.com/results"
 _DATA_RE = re.compile(r"ytInitialData\s*=\s*(\{.*?\})\s*;\s*</script>", re.DOTALL)
 _REL_RE = re.compile(r"(\d+)\s+(second|minute|hour|day|week|month|year)s?\s+ago")
@@ -38,6 +38,7 @@ def _walk_video_renderers(node):
     if isinstance(node, dict):
         if "videoRenderer" in node:
             yield node["videoRenderer"]
+            return
         for value in node.values():
             yield from _walk_video_renderers(value)
     elif isinstance(node, list):
@@ -81,7 +82,7 @@ class YouTubeSource:
     name = NAME
 
     async def fetch(self, client, topic: str, since: datetime) -> list[NewsItem]:
-        params = {"search_query": topic, "sp": "CAI%3D"}
+        params = {"search_query": topic, "sp": "CAI="}
         resp = await client.get(
             ENDPOINT,
             params=params,

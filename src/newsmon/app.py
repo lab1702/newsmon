@@ -4,6 +4,7 @@ import webbrowser
 from datetime import datetime, timedelta, timezone
 
 import httpx
+from rich.text import Text
 from textual.app import App, ComposeResult
 from textual.containers import Horizontal
 from textual.widgets import DataTable, Footer, Header, Static
@@ -36,6 +37,7 @@ class NewsmonApp(App):
         self.sources = build_sources(config.sources)
         self.tracker = SeenTracker()
         self.new_count = 0
+        self._new_keys: set[str] = set()
         self.items: list[NewsItem] = []
         self._client: httpx.AsyncClient | None = None
 
@@ -71,6 +73,7 @@ class NewsmonApp(App):
         new = self.tracker.mark_new(merged)
         self.new_count += len(new)
         self.items = merged
+        self._new_keys = {item.dedup_key for item in new}
         self._render(results)
         if new and self.config.bell:
             self.bell()
@@ -81,7 +84,8 @@ class NewsmonApp(App):
         tz = datetime.now().astimezone().tzinfo
         for item in self.items:
             icon, when, title = format_row(item, tz=tz)
-            table.add_row(icon, when, title)
+            cell = Text(title, style="bold yellow") if item.dedup_key in self._new_keys else title
+            table.add_row(icon, when, cell)
         self.query_one("#sidebar", Static).update(
             render_sidebar(results, self.new_count)
         )
