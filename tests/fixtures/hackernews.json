@@ -1,0 +1,20 @@
+{
+  "hits": [
+    {
+      "objectID": "111",
+      "title": "Show HN: quake early-warning tool",
+      "url": "https://example.com/quake-tool",
+      "author": "alice",
+      "points": 42,
+      "created_at": "2026-06-09T11:45:00.000Z"
+    },
+    {
+      "objectID": "222",
+      "title": "Ask HN: best quake data sources?",
+      "url": null,
+      "author": "bob",
+      "points": 7,
+      "created_at": "2026-06-09T10:15:00.000Z"
+    }
+  ]
+}

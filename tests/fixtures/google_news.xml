@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>quake - Google News</title>
+    <item>
+      <title>Major quake strikes coast - Example News</title>
+      <link>https://news.google.com/rss/articles/abc?oc=5</link>
+      <guid>abc</guid>
+      <pubDate>Tue, 09 Jun 2026 11:30:00 GMT</pubDate>
+      <description>&lt;a href="x"&gt;Major quake strikes coast&lt;/a&gt;</description>
+      <source url="https://example.com">Example News</source>
+    </item>
+    <item>
+      <title>Aftershocks reported - Other Outlet</title>
+      <link>https://news.google.com/rss/articles/def?oc=5</link>
+      <guid>def</guid>
+      <pubDate>Tue, 09 Jun 2026 10:00:00 GMT</pubDate>
+      <description>Aftershocks reported</description>
+      <source url="https://other.com">Other Outlet</source>
+    </item>
+  </channel>
+</rss>

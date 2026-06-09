@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>quake - Nitter</title>
+    <item>
+      <title>BREAKING: quake felt downtown</title>
+      <link>https://nitter.net/user/status/1234#m</link>
+      <pubDate>Tue, 09 Jun 2026 11:55:00 GMT</pubDate>
+      <dc:creator xmlns:dc="http://purl.org/dc/elements/1.1/">@user</dc:creator>
+    </item>
+  </channel>
+</rss>
