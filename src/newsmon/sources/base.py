@@ -23,7 +23,7 @@ async def safe_fetch(
     slow_after: float,
 ) -> SourceResult:
     """Run one source's fetch with a timeout, never raising; report health."""
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
     start = loop.time()
     try:
         items = await asyncio.wait_for(source.fetch(client, topic, since), timeout)
