@@ -10,6 +10,7 @@ from textual.widgets import DataTable, Footer, Header, Static
 
 from newsmon.aggregator import SeenTracker, merge_items, poll_sources
 from newsmon.cli import Config
+from newsmon.models import NewsItem
 from newsmon.sources import build_sources
 from newsmon.ui import format_row, render_sidebar
 
@@ -35,7 +36,7 @@ class NewsmonApp(App):
         self.sources = build_sources(config.sources)
         self.tracker = SeenTracker()
         self.new_count = 0
-        self.items: list = []
+        self.items: list[NewsItem] = []
         self._client: httpx.AsyncClient | None = None
 
     def compose(self) -> ComposeResult:
@@ -88,7 +89,7 @@ class NewsmonApp(App):
     def _selected_item(self):
         table = self.query_one("#stream", DataTable)
         row = table.cursor_row
-        if row is None or row >= len(self.items):
+        if row >= len(self.items):
             return None
         return self.items[row]
 
