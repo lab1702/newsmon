@@ -20,6 +20,9 @@ SOURCE_ICONS = {
     "youtube": "▶️",
     "twitch": "🟣",
     "x": "𝕏",
+    "bing": "🅱️",
+    "gdelt": "🌐",
+    "masto": "🐘",
 }
 _HEALTH_ICONS = {Health.OK: "✅", Health.SLOW: "⚠️", Health.FAILED: "❌"}
 

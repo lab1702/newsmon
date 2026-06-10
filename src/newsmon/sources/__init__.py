@@ -3,8 +3,11 @@
 from __future__ import annotations
 
 from newsmon.sources.base import Source, safe_fetch
+from newsmon.sources.bing import BingNewsSource
+from newsmon.sources.gdelt import GdeltSource
 from newsmon.sources.google_news import GoogleNewsSource
 from newsmon.sources.hackernews import HackerNewsSource
+from newsmon.sources.mastodon import MastodonSource
 from newsmon.sources.reddit import RedditSource
 from newsmon.sources.twitch import TwitchSource
 from newsmon.sources.twitter import TwitterSource
@@ -17,6 +20,9 @@ _REGISTRY = {
     "youtube": YouTubeSource,
     "twitch": TwitchSource,
     "x": TwitterSource,
+    "bing": BingNewsSource,
+    "gdelt": GdeltSource,
+    "masto": MastodonSource,
 }
 ALL_SOURCE_NAMES = list(_REGISTRY)
 
