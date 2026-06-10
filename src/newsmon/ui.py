@@ -5,9 +5,14 @@ from urllib.parse import urlsplit
 
 from newsmon.health import Health, SourceResult
 from newsmon.models import NewsItem
+from newsmon.sources.base import clean_text
 
 # Digit keys 1-9 toggle the Nth source; sources past the 9th have no toggle key.
 MAX_TOGGLE_KEYS = 9
+
+# Display cap for a rendered title; bounds a pathological multi-megabyte title
+# from a hostile feed (the per-parser caps are inconsistent or absent).
+_TITLE_MAX = 500
 
 
 def is_browsable_url(url: str) -> bool:
@@ -41,7 +46,10 @@ def format_row(
     # don't render identically.
     today = (now or datetime.now(tz)).date()
     fmt = "%H:%M" if local.date() == today else "%m-%d %H:%M"
-    return item.source, local.strftime(fmt), item.title
+    # Single sanitization choke point for the untrusted title before it reaches
+    # the terminal via Text(): strip ANSI/control escapes and bidi overrides so
+    # no individual parser can forget to (most don't sanitize their titles).
+    return item.source, local.strftime(fmt), clean_text(item.title, max_len=_TITLE_MAX)
 
 
 def render_sidebar(

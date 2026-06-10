@@ -28,6 +28,18 @@ def test_format_row_prefixes_date_for_other_days():
     assert when == "06-07 11:30"
 
 
+def test_format_row_sanitizes_title_escapes_and_bidi():
+    # The title is untrusted feed text and format_row is the single choke point
+    # before it reaches the terminal via Text(). Raw ANSI/control escapes and
+    # bidi-override chars must be stripped here so no parser can forget to.
+    item = NewsItem("web", "Quake\x1b[2J\x1b]0;pwned\x07 ‮gnp", "https://a/1",
+                    datetime(2026, 6, 9, 11, 30, tzinfo=timezone.utc))
+    _, _, title = format_row(item, tz=timezone.utc, now=NOW)
+    assert "\x1b" not in title
+    assert "\x07" not in title
+    assert "‮" not in title
+
+
 def test_format_row_survives_out_of_range_timestamp():
     # A far-future timestamp (e.g. from a hostile feed) overflows astimezone()
     # for a user east of UTC. format_row runs in the shared render loop outside
