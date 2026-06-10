@@ -13,24 +13,12 @@ def is_browsable_url(url: str) -> bool:
     return parts.scheme in ("http", "https") and bool(parts.netloc)
 
 
-SOURCE_ICONS = {
-    "web": "📰",
-    "hn": "🟧",
-    "reddit": "👽",
-    "youtube": "▶️",
-    "twitch": "🟣",
-    "x": "𝕏",
-    "bing": "🅱️",
-    "gdelt": "🌐",
-    "masto": "🐘",
-}
 _HEALTH_ICONS = {Health.OK: "✅", Health.SLOW: "⚠️", Health.FAILED: "❌"}
 
 
 def format_row(item: NewsItem, tz: tzinfo) -> tuple[str, str, str]:
-    icon = SOURCE_ICONS.get(item.source, "•")
     when = item.published.astimezone(tz).strftime("%H:%M")
-    return icon, when, item.title
+    return item.source, when, item.title
 
 
 def render_sidebar(
