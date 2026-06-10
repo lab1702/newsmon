@@ -53,3 +53,51 @@ def test_parse_reddit_bad_timestamp_does_not_lose_batch():
     items = parse_reddit(text)
     assert len(items) == 1
     assert items[0].published.tzinfo is not None
+
+
+def test_parse_reddit_boolean_created_utc_is_not_treated_as_epoch():
+    # A JSON boolean is an int subclass; true would parse to epoch 1 (1970) and
+    # the item would be silently dropped by the recency filter. Treat as missing.
+    text = (
+        '{"data": {"children": [{"data":'
+        ' {"title": "t", "permalink": "/r/x/1/", "created_utc": true}}]}}'
+    )
+    items = parse_reddit(text)
+    assert items[0].published.astimezone(timezone.utc).year != 1970
+
+
+def test_parse_reddit_non_string_permalink_does_not_build_corrupt_url():
+    # A truthy non-string permalink must not be concatenated into the URL.
+    text = (
+        '{"data": {"children": [{"data":'
+        ' {"title": "t", "permalink": 123, "url": "https://e.com/a"}}]}}'
+    )
+    items = parse_reddit(text)
+    assert items[0].url == "https://e.com/a"
+
+
+def test_parse_reddit_non_string_url_fallback_becomes_empty():
+    text = (
+        '{"data": {"children": [{"data": {"title": "t", "url": 999}}]}}'
+    )
+    items = parse_reddit(text)
+    assert items[0].url == ""
+
+
+def test_parse_reddit_at_permalink_is_not_an_open_redirect():
+    # permalink "@evil.com/x" would yield www.reddit.com@evil.com (host evil.com).
+    # It doesn't start with "/", so it must fall back, not build that URL.
+    text = (
+        '{"data": {"children": [{"data":'
+        ' {"title": "t", "permalink": "@evil.com/x", "url": ""}}]}}'
+    )
+    items = parse_reddit(text)
+    assert "evil.com" not in items[0].url
+
+
+def test_parse_reddit_non_string_title_uses_placeholder():
+    text = (
+        '{"data": {"children": [{"data": {"title": 42, "permalink": "/r/x/1/"}}]}}'
+    )
+    items = parse_reddit(text)
+    assert items[0].title == "(untitled)"

@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 
 from conftest import FakeStreamClient
 
-from newsmon.sources.mastodon import MastodonSource, parse_mastodon
+from newsmon.sources.mastodon import MastodonSource, _text, parse_mastodon
 
 
 def test_parse_mastodon(fixtures_dir):
@@ -19,6 +19,20 @@ def test_parse_mastodon(fixtures_dir):
     # author reconstructed as @handle@instance from the post URL
     assert first.extra.get("author") == "@emsc@masto.ai"
     assert items[1].extra.get("author") == "@earthquake_monitor@mstdn.social"
+
+
+def test_text_strips_ansi_escapes_from_post_body():
+    # The hashtag feed aggregates federated posts; the HTML body is fully
+    # attacker-controlled and must not carry raw ANSI/BEL escapes to the terminal.
+    out = _text("hi\x1b[31mRED\x1b[0m <b>there</b>\x07")
+    assert "\x1b" not in out
+    assert "\x07" not in out
+    assert "there" in out
+
+
+def test_text_strips_bidi_override_from_post_body():
+    out = _text("safe‮spoofed")
+    assert "‮" not in out
 
 
 async def test_fetch_builds_hashtag_from_topic(fixtures_dir):

@@ -42,15 +42,23 @@ def parse_twitch(text: str) -> list[NewsItem]:
         if not stream:  # skip offline channels (also coerces wrong-type values)
             continue
         created = stream.get("createdAt")
-        if not created:
+        if not isinstance(created, str) or not created:
+            # A non-string createdAt reaches parse_iso8601_utc and raises
+            # AttributeError (not the caught ValueError); skip the edge.
             continue
         try:
             published = parse_iso8601_utc(created)
         except ValueError:
             continue
         login = item.get("login", "")
-        title = as_dict(item.get("broadcastSettings")).get("title", "") or item.get(
-            "displayName", login
+        if not isinstance(login, str):
+            # A non-string login reaches quote() and raises TypeError; skip it.
+            continue
+        bs_title = as_dict(item.get("broadcastSettings")).get("title")
+        display = item.get("displayName")
+        # Pick the first usable string so a non-string title can't reach Text().
+        title = next(
+            (t for t in (bs_title, display, login) if isinstance(t, str) and t), login
         )
         items.append(
             NewsItem(

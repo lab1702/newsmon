@@ -19,22 +19,32 @@ def parse_reddit(text: str) -> list[NewsItem]:
         post = as_dict(as_dict(child).get("data"))
         if not post:  # malformed/non-dict child carries no usable post
             continue
-        permalink = post.get("permalink", "")
-        url = f"https://www.reddit.com{permalink}" if permalink else post.get("url", "")
+        permalink = post.get("permalink")
+        if isinstance(permalink, str) and permalink.startswith("/") and not permalink.startswith("//"):
+            # Only a server-relative permalink is safe to concatenate; anything
+            # else (a non-string, or "@evil.com/x" which would resolve to host
+            # evil.com) falls back to a validated url so we never spoof the host.
+            url = f"https://www.reddit.com{permalink}"
+        else:
+            raw_url = post.get("url")
+            url = raw_url if isinstance(raw_url, str) else ""
         created = post.get("created_utc")
         try:
             published = (
                 datetime.fromtimestamp(created, tz=timezone.utc)
-                if created is not None
+                # A JSON boolean is an int subclass; left in, true → epoch 1
+                # (1970) and the item is silently dropped by the recency filter.
+                if isinstance(created, (int, float)) and not isinstance(created, bool)
                 else utcnow()
             )
         except (TypeError, ValueError, OverflowError):
             # A malformed/non-numeric created_utc must not lose the whole batch.
             published = utcnow()
+        raw_title = post.get("title")
         items.append(
             NewsItem(
                 source=NAME,
-                title=post.get("title") or "(untitled)",
+                title=raw_title if isinstance(raw_title, str) and raw_title else "(untitled)",
                 url=url,
                 published=published,
                 summary="",

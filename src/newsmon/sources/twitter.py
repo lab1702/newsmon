@@ -7,7 +7,9 @@ from urllib.parse import urlsplit, urlunsplit
 import feedparser
 
 from newsmon.models import NewsItem
-from newsmon.sources.base import fetch_text, published_from_feed
+from newsmon.sources.base import clean_text, fetch_text, published_from_feed
+
+_TITLE_MAX = 500
 
 NAME = "x"
 INSTANCES = [
@@ -33,7 +35,9 @@ def parse_nitter(text: str) -> list[NewsItem]:
         items.append(
             NewsItem(
                 source=NAME,
-                title=entry.get("title", ""),
+                # The title comes from a third-party Nitter instance; sanitize it
+                # (strip control/bidi escapes, cap length) before it reaches the UI.
+                title=clean_text(entry.get("title", ""), max_len=_TITLE_MAX),
                 url=normalize_to_x_url(entry.get("link", "")),
                 published=published_from_feed(entry),
                 summary="",

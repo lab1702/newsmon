@@ -45,6 +45,34 @@ def test_parse_hackernews_encodes_object_id_in_discussion_url():
     )
 
 
+def test_parse_hackernews_non_string_created_at_is_skipped():
+    # A truthy non-string created_at (schema drift) reaches parse_iso8601_utc and
+    # raises AttributeError — not the caught ValueError. The record must be
+    # skipped, not abort the whole batch.
+    text = '{"hits": [{"created_at": 12345, "title": "t", "objectID": "1"}]}'
+    assert parse_hackernews(text) == []
+
+
+def test_parse_hackernews_non_string_url_falls_back_to_discussion():
+    # A non-string url must not land on NewsItem (it would crash dedup_key later).
+    text = (
+        '{"hits": [{"created_at": "2026-06-09T11:00:00Z", "title": "t",'
+        ' "objectID": "99", "url": 123}]}'
+    )
+    items = parse_hackernews(text)
+    assert items[0].url == "https://news.ycombinator.com/item?id=99"
+
+
+def test_parse_hackernews_non_string_title_uses_placeholder():
+    # A truthy non-string title (dict/int) would reach Text() and crash render.
+    text = (
+        '{"hits": [{"created_at": "2026-06-09T11:00:00Z", "title": {"x": 1},'
+        ' "objectID": "1", "url": "https://e.com/a"}]}'
+    )
+    items = parse_hackernews(text)
+    assert items[0].title == "(untitled)"
+
+
 async def test_fetch_filters_by_since(fixtures_dir):
     text = (fixtures_dir / "hackernews.json").read_text()
     client = FakeStreamClient(text)

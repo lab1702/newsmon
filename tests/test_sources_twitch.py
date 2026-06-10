@@ -35,6 +35,50 @@ def test_parse_twitch_wrong_type_stream_is_skipped():
     assert parse_twitch(text) == []
 
 
+def test_parse_twitch_non_string_created_at_is_skipped():
+    # A non-string createdAt reaches parse_iso8601_utc and raises AttributeError,
+    # not the caught ValueError; the edge must be skipped without aborting the loop.
+    text = (
+        '{"data": {"searchFor": {"channels": {"edges": [{"item":'
+        ' {"login": "x", "stream": {"createdAt": 123, "viewersCount": 1}}}]}}}}'
+    )
+    assert parse_twitch(text) == []
+
+
+def test_parse_twitch_non_string_login_is_skipped():
+    # A non-string login reaches quote() and raises TypeError; skip the edge.
+    text = (
+        '{"data": {"searchFor": {"channels": {"edges": [{"item":'
+        ' {"login": 999, "stream": {"createdAt": "2026-06-09T11:00:00Z",'
+        ' "viewersCount": 1}}}]}}}}'
+    )
+    assert parse_twitch(text) == []
+
+
+def test_parse_twitch_one_bad_edge_does_not_drop_valid_channels():
+    text = (
+        '{"data": {"searchFor": {"channels": {"edges": ['
+        '{"item": {"login": "good", "broadcastSettings": {"title": "Live"},'
+        ' "stream": {"createdAt": "2026-06-09T11:00:00Z", "viewersCount": 1}}},'
+        '{"item": {"login": 999, "stream": {"createdAt": "2026-06-09T11:00:00Z",'
+        ' "viewersCount": 1}}}]}}}}'
+    )
+    items = parse_twitch(text)
+    assert [i.url for i in items] == ["https://twitch.tv/good"]
+
+
+def test_parse_twitch_non_string_title_is_coerced():
+    # A non-string broadcastSettings.title would reach Text() and crash render.
+    text = (
+        '{"data": {"searchFor": {"channels": {"edges": [{"item":'
+        ' {"login": "ch", "broadcastSettings": {"title": 999},'
+        ' "stream": {"createdAt": "2026-06-09T11:00:00Z", "viewersCount": 1}}}]}}}}'
+    )
+    items = parse_twitch(text)
+    assert isinstance(items[0].title, str)
+    assert items[0].title == "ch"
+
+
 def test_parse_twitch_encodes_login_in_url():
     # A corrupted/hostile login must be percent-encoded so it can't inject extra
     # path/query segments into the channel URL.

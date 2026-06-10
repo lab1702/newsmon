@@ -18,7 +18,9 @@ def parse_hackernews(text: str) -> list[NewsItem]:
     for hit in as_list(data.get("hits")):
         hit = as_dict(hit)
         created = hit.get("created_at")
-        if not created:
+        if not isinstance(created, str) or not created:
+            # A truthy non-string created_at would reach parse_iso8601_utc and
+            # raise AttributeError (not the caught ValueError), aborting the batch.
             continue
         try:
             published = parse_iso8601_utc(created)
@@ -28,11 +30,13 @@ def parse_hackernews(text: str) -> list[NewsItem]:
         discussion = (
             f"https://news.ycombinator.com/item?id={quote(str(object_id), safe='')}"
         )
-        url = hit.get("url") or discussion
+        raw_url = hit.get("url")
+        url = raw_url if isinstance(raw_url, str) and raw_url else discussion
+        raw_title = hit.get("title")
         items.append(
             NewsItem(
                 source=NAME,
-                title=hit.get("title") or "(untitled)",
+                title=raw_title if isinstance(raw_title, str) and raw_title else "(untitled)",
                 url=url,
                 published=published,
                 summary="",

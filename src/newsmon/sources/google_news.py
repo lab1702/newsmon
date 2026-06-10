@@ -23,7 +23,9 @@ def parse_google_news(text: str) -> list[NewsItem]:
         items.append(
             NewsItem(
                 source=NAME,
-                title=entry.get("title", "(untitled)"),
+                # feedparser sets title="" for an empty <title></title>, so the
+                # .get default never fires — use `or` to catch the empty string.
+                title=entry.get("title") or "(untitled)",
                 # The link is a Google News redirect (news.google.com/rss/articles/…),
                 # not the publisher's URL. Unlike Bing's apiclick wrapper the target
                 # isn't a query param — the newer format encodes it opaquely and can't
