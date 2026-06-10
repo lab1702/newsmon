@@ -11,3 +11,8 @@ def test_parse_reddit(fixtures_dir):
     assert item.extra["subreddit"] == "news"
     assert item.extra["comments"] == 128
     assert item.published.tzinfo is not None
+
+
+def test_parse_reddit_null_data_returns_no_items():
+    # A present-but-null "data" key must not crash the parser
+    assert parse_reddit('{"data": null}') == []

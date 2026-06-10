@@ -1,9 +1,12 @@
 import asyncio
 from datetime import datetime, timezone
 
+import pytest
+from conftest import FakeStreamClient
+
 from newsmon.health import Health
 from newsmon.models import NewsItem
-from newsmon.sources.base import safe_fetch
+from newsmon.sources.base import fetch_text, safe_fetch
 
 NOW = datetime(2026, 6, 9, 12, 0, tzinfo=timezone.utc)
 
@@ -51,3 +54,20 @@ async def test_safe_fetch_timeout_is_failure():
 async def test_safe_fetch_slow_flag():
     r = await safe_fetch(GoodSource(), None, "quake", NOW, timeout=2, slow_after=-1)
     assert r.health is Health.SLOW
+
+
+async def test_fetch_text_returns_decoded_body():
+    client = FakeStreamClient("hello world", chunk_size=4)
+    assert await fetch_text(client, "https://x/feed") == "hello world"
+
+
+async def test_fetch_text_aborts_oversized_response():
+    client = FakeStreamClient("x" * 10_000, chunk_size=1024)
+    with pytest.raises(ValueError):
+        await fetch_text(client, "https://x/feed", max_bytes=2048)
+
+
+async def test_fetch_text_raises_for_status():
+    client = FakeStreamClient("nope", status=503)
+    with pytest.raises(RuntimeError):
+        await fetch_text(client, "https://x/feed")

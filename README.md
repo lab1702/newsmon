@@ -133,6 +133,12 @@ the aggregator's dedup/window/live-arrival logic is tested in isolation.
   design, given the no-keys constraint.
 - **YouTube timestamps are approximate** — search results give relative times
   ("2 hours ago"), which are converted to an approximate absolute time.
+- **The same story can appear once per source.** Dedup keys off the normalized
+  article URL, but Google News links are opaque `news.google.com` redirects
+  whose real target isn't recoverable without keys — so a `web` headline won't
+  collapse against the same article from `bing`/`gdelt`.
+- **Items with no feed timestamp are treated as "now"** and sort to the top —
+  they pass the recency window and can briefly look fresher than they are.
 - Not yet implemented: optional API-key integrations to make Twitch/X reliable,
   user-configurable extra RSS feeds, and desktop notifications beyond the bell.
 

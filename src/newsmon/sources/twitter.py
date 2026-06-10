@@ -6,7 +6,7 @@ from urllib.parse import urlsplit, urlunsplit
 import feedparser
 
 from newsmon.models import NewsItem
-from newsmon.sources.base import published_from_feed
+from newsmon.sources.base import fetch_text, published_from_feed
 
 NAME = "x"
 INSTANCES = [
@@ -45,16 +45,15 @@ class TwitterSource:
         last_error: Exception | None = None
         for base in INSTANCES:
             try:
-                resp = await client.get(
-                    f"{base}/search/rss", params={"f": "tweets", "q": topic}
+                text = await fetch_text(
+                    client, f"{base}/search/rss", params={"f": "tweets", "q": topic}
                 )
-                resp.raise_for_status()
             except Exception as exc:  # noqa: BLE001 - try next instance
                 last_error = exc
                 continue
             # First instance that responds is authoritative — an empty result
             # means "no tweets", not "instance down", so don't fall through.
-            return parse_nitter(resp.text)
+            return parse_nitter(text)
         if last_error:
             raise last_error
         return []

@@ -1,4 +1,19 @@
+from datetime import datetime, timedelta, timezone
+
+from newsmon.aggregator import SeenTracker, merge_items, poll_sources
 from newsmon.health import Health, SourceResult
+from newsmon.models import NewsItem
+
+NOW = datetime(2026, 6, 9, 12, 0, tzinfo=timezone.utc)
+
+
+def _item(url, minutes_ago, source="web"):
+    return NewsItem(
+        source=source,
+        title=url,
+        url=url,
+        published=NOW - timedelta(minutes=minutes_ago),
+    )
 
 
 def test_source_result_defaults():
@@ -12,23 +27,6 @@ def test_count_reflects_items():
     items = [_item("https://a.com/1", 1), _item("https://a.com/2", 2)]
     r = SourceResult(name="web", items=items, health=Health.OK)
     assert r.count == 2
-
-
-from datetime import datetime, timedelta, timezone
-
-from newsmon.aggregator import merge_items
-from newsmon.models import NewsItem
-
-NOW = datetime(2026, 6, 9, 12, 0, tzinfo=timezone.utc)
-
-
-def _item(url, minutes_ago, source="web"):
-    return NewsItem(
-        source=source,
-        title=url,
-        url=url,
-        published=NOW - timedelta(minutes=minutes_ago),
-    )
 
 
 def test_merge_filters_old_dedups_and_sorts_newest_first():
@@ -47,9 +45,6 @@ def test_merge_handles_empty():
     assert merge_items([], NOW) == []
 
 
-from newsmon.aggregator import SeenTracker
-
-
 def test_seen_tracker_first_poll_marks_nothing_new():
     tracker = SeenTracker()
     items = [_item("https://a.com/1", 1), _item("https://a.com/2", 2)]
@@ -62,9 +57,6 @@ def test_seen_tracker_reports_only_unseen_after_baseline():
     tracker.mark_new([_item("https://a.com/1", 1)])
     new = tracker.mark_new([_item("https://a.com/2", 0), _item("https://a.com/1", 1)])
     assert [i.url for i in new] == ["https://a.com/2"]
-
-
-from newsmon.aggregator import poll_sources
 
 
 class _Src:

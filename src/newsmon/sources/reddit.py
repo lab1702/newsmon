@@ -4,7 +4,7 @@ import json
 from datetime import datetime, timezone
 
 from newsmon.models import NewsItem
-from newsmon.sources.base import utcnow
+from newsmon.sources.base import fetch_text, utcnow
 
 NAME = "reddit"
 ENDPOINT = "https://www.reddit.com/search.json"
@@ -14,8 +14,8 @@ USER_AGENT = "newsmon/0.1 (breaking-news monitor)"
 def parse_reddit(text: str) -> list[NewsItem]:
     data = json.loads(text)
     items: list[NewsItem] = []
-    for child in data.get("data", {}).get("children", []):
-        post = child.get("data", {})
+    for child in (data.get("data") or {}).get("children") or []:
+        post = child.get("data") or {}
         permalink = post.get("permalink", "")
         url = f"https://www.reddit.com{permalink}" if permalink else post.get("url", "")
         created = post.get("created_utc")
@@ -44,8 +44,7 @@ class RedditSource:
 
     async def fetch(self, client, topic: str, since: datetime) -> list[NewsItem]:
         params = {"q": topic, "sort": "new", "limit": 50}
-        resp = await client.get(
-            ENDPOINT, params=params, headers={"User-Agent": USER_AGENT}
+        text = await fetch_text(
+            client, ENDPOINT, params=params, headers={"User-Agent": USER_AGENT}
         )
-        resp.raise_for_status()
-        return parse_reddit(resp.text)
+        return parse_reddit(text)

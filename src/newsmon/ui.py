@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, tzinfo
+from datetime import tzinfo
 from urllib.parse import urlsplit
 
 from newsmon.health import Health, SourceResult

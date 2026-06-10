@@ -1,24 +1,8 @@
 from datetime import datetime, timezone
 
+from conftest import FakeStreamClient
+
 from newsmon.sources.mastodon import MastodonSource, parse_mastodon
-
-
-class _FakeResp:
-    def __init__(self, text):
-        self.text = text
-
-    def raise_for_status(self):
-        pass
-
-
-class _FakeClient:
-    def __init__(self, text):
-        self.text = text
-        self.calls = []
-
-    async def get(self, url, params=None, headers=None):
-        self.calls.append((url, params, headers))
-        return _FakeResp(self.text)
 
 
 def test_parse_mastodon(fixtures_dir):
@@ -39,17 +23,17 @@ def test_parse_mastodon(fixtures_dir):
 
 async def test_fetch_builds_hashtag_from_topic(fixtures_dir):
     text = (fixtures_dir / "mastodon.xml").read_text()
-    client = _FakeClient(text)
+    client = FakeStreamClient(text)
     since = datetime(2026, 6, 9, 6, 0, tzinfo=timezone.utc)
     items = await MastodonSource().fetch(client, "Los Angeles", since)
     assert len(items) == 2
-    url, _, _ = client.calls[0]
+    _, url, _ = client.calls[0]
     # multi-word topics collapse to a single lowercase hashtag feed
     assert url.endswith("/tags/losangeles.rss")
 
 
 async def test_fetch_empty_tag_skips_request():
-    client = _FakeClient("")
+    client = FakeStreamClient("")
     since = datetime(2026, 6, 9, 6, 0, tzinfo=timezone.utc)
     items = await MastodonSource().fetch(client, "!!!", since)
     assert items == []

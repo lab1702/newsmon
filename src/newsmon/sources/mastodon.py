@@ -8,7 +8,7 @@ from urllib.parse import urlsplit
 import feedparser
 
 from newsmon.models import NewsItem
-from newsmon.sources.base import published_from_feed
+from newsmon.sources.base import fetch_text, published_from_feed
 
 NAME = "masto"
 INSTANCE = "https://mastodon.social"
@@ -67,6 +67,5 @@ class MastodonSource:
         tag = hashtag(topic)
         if not tag:
             return []
-        resp = await client.get(f"{INSTANCE}/tags/{tag}.rss")
-        resp.raise_for_status()
-        return parse_mastodon(resp.text)
+        text = await fetch_text(client, f"{INSTANCE}/tags/{tag}.rss")
+        return parse_mastodon(text)

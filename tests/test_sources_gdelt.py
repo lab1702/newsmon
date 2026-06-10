@@ -1,24 +1,8 @@
 from datetime import datetime, timezone
 
+from conftest import FakeStreamClient
+
 from newsmon.sources.gdelt import GdeltSource, parse_gdelt
-
-
-class _FakeResp:
-    def __init__(self, text):
-        self.text = text
-
-    def raise_for_status(self):
-        pass
-
-
-class _FakeClient:
-    def __init__(self, text):
-        self.text = text
-        self.calls = []
-
-    async def get(self, url, params=None, headers=None):
-        self.calls.append((url, params, headers))
-        return _FakeResp(self.text)
 
 
 def test_parse_gdelt(fixtures_dir):
@@ -40,12 +24,18 @@ def test_parse_gdelt_empty_returns_no_items():
     assert parse_gdelt("{}") == []
 
 
+def test_parse_gdelt_null_articles_returns_no_items():
+    # A present-but-null key must not crash the parser
+    assert parse_gdelt('{"articles": null}') == []
+
+
 async def test_fetch_sorts_newest_first(fixtures_dir):
     text = (fixtures_dir / "gdelt.json").read_text()
-    client = _FakeClient(text)
+    client = FakeStreamClient(text)
     since = datetime(2026, 6, 9, 6, 0, tzinfo=timezone.utc)
     await GdeltSource().fetch(client, "quake", since)
-    _, params, _ = client.calls[0]
+    _, _, kwargs = client.calls[0]
+    params = kwargs["params"]
     assert params["query"] == "quake"
     assert params["mode"] == "artlist"
     assert params["format"] == "json"
