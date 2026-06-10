@@ -1,3 +1,4 @@
+import threading
 from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -82,3 +83,45 @@ async def test_enter_opens_selected_item_in_browser():
             await pilot.press("enter")
             await pilot.pause()
     opened.assert_called_once_with("https://example.com/quake")
+
+
+async def test_open_runs_browser_off_the_event_loop():
+    """webbrowser.open can block (process spawn / launcher wait); it must run in
+    a worker thread so it can't freeze the single Textual event loop."""
+    main_thread = threading.get_ident()
+    rec = {}
+
+    def fake_open(url):
+        rec["thread"] = threading.get_ident()
+        rec["url"] = url
+
+    poll = AsyncMock(return_value=_one_result())
+    with patch("newsmon.app.poll_sources", new=poll), \
+         patch("newsmon.app.webbrowser.open", new=fake_open):
+        app = NewsmonApp(Config(topic="t", interval=3600))
+        async with app.run_test(size=(120, 30)) as pilot:
+            await pilot.pause()
+            await pilot.press("enter")
+            await pilot.pause()
+    assert rec["url"] == "https://example.com/quake"
+    assert rec["thread"] != main_thread  # ran off the event-loop thread
+
+
+async def test_open_rejection_notice_strips_control_chars_from_url():
+    """An unsafe URL carrying control chars (e.g. ESC/BEL from a hostile feed)
+    is rejected before opening — but the rejection notification must not emit the
+    raw control bytes to the terminal either."""
+    bad = NewsItem(
+        "x", "t", "https://x.com/a\x1b[31m\x07evil", datetime.now(timezone.utc)
+    )
+    poll = AsyncMock(return_value=[SourceResult("x", [bad], Health.OK)])
+    with patch("newsmon.app.poll_sources", new=poll):
+        app = NewsmonApp(Config(topic="t", interval=3600))
+        async with app.run_test(size=(120, 30)) as pilot:
+            await pilot.pause()
+            app.notify = MagicMock()
+            await pilot.press("enter")
+            await pilot.pause()
+    msg = app.notify.call_args.args[0]
+    assert "\x1b" not in msg
+    assert "\x07" not in msg

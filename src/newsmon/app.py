@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import webbrowser
 from datetime import datetime, timedelta, timezone
 
@@ -15,6 +16,7 @@ from newsmon.cli import Config
 from newsmon.health import SourceResult
 from newsmon.models import NewsItem
 from newsmon.sources import build_sources
+from newsmon.sources.base import clean_text
 from newsmon.ui import (
     MAX_TOGGLE_KEYS,
     format_row,
@@ -143,21 +145,25 @@ class NewsmonApp(App):
             return None
         return self.items[row]
 
-    def on_data_table_row_selected(self, event: DataTable.RowSelected) -> None:
+    async def on_data_table_row_selected(self, event: DataTable.RowSelected) -> None:
         # The focused DataTable consumes Enter (and click) as a row selection,
         # shadowing the App-level "enter" binding — so open from this message.
-        self.action_open()
+        await self.action_open()
 
-    def action_open(self) -> None:
+    async def action_open(self) -> None:
         item = self._selected_item()
         if item is None:
             return
         if is_browsable_url(item.url):
-            webbrowser.open(item.url)
+            # webbrowser.open can block (process spawn / launcher wait); keep it
+            # off the single event loop so it can't freeze the UI.
+            await asyncio.to_thread(webbrowser.open, item.url)
         else:
-            # markup=False: the URL is untrusted data, not Textual content markup.
+            # markup=False stops Textual markup parsing, but the rejected URL is
+            # untrusted and may carry raw control/escape bytes (is_browsable_url
+            # blocks them from opening, not from this notification) — strip them.
             self.notify(
-                f"Refused to open unsafe URL: {item.url}",
+                f"Refused to open unsafe URL: {clean_text(item.url)}",
                 severity="warning",
                 markup=False,
             )
@@ -168,7 +174,7 @@ class NewsmonApp(App):
             return
         if not is_browsable_url(item.url):
             self.notify(
-                f"Refused to copy unsafe URL: {item.url}",
+                f"Refused to copy unsafe URL: {clean_text(item.url)}",
                 severity="warning",
                 markup=False,
             )
