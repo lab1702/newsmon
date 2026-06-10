@@ -4,6 +4,7 @@ import json
 from datetime import datetime, timezone
 
 from newsmon.models import NewsItem
+from newsmon.sources.base import utcnow
 
 NAME = "reddit"
 ENDPOINT = "https://www.reddit.com/search.json"
@@ -17,7 +18,10 @@ def parse_reddit(text: str) -> list[NewsItem]:
         post = child.get("data", {})
         permalink = post.get("permalink", "")
         url = f"https://www.reddit.com{permalink}" if permalink else post.get("url", "")
-        published = datetime.fromtimestamp(post.get("created_utc", 0), tz=timezone.utc)
+        created = post.get("created_utc")
+        published = (
+            datetime.fromtimestamp(created, tz=timezone.utc) if created else utcnow()
+        )
         items.append(
             NewsItem(
                 source=NAME,

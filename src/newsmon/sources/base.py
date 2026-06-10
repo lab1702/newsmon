@@ -1,11 +1,29 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Protocol
 
 from newsmon.health import Health, SourceResult
 from newsmon.models import NewsItem
+
+
+def utcnow() -> datetime:
+    """Current time as a timezone-aware UTC datetime."""
+    return datetime.now(timezone.utc)
+
+
+def published_from_feed(entry) -> datetime:
+    """Timestamp from a feedparser entry, falling back to now() when absent."""
+    parsed = getattr(entry, "published_parsed", None)
+    if parsed is None:
+        return utcnow()
+    return datetime(*parsed[:6], tzinfo=timezone.utc)
+
+
+def parse_iso8601_utc(value: str) -> datetime:
+    """Parse an ISO-8601 timestamp, normalizing a trailing 'Z' to +00:00."""
+    return datetime.fromisoformat(value.replace("Z", "+00:00"))
 
 
 class Source(Protocol):

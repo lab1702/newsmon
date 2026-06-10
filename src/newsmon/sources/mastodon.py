@@ -2,12 +2,13 @@ from __future__ import annotations
 
 import html
 import re
-from datetime import datetime, timezone
+from datetime import datetime
 from urllib.parse import urlsplit
 
 import feedparser
 
 from newsmon.models import NewsItem
+from newsmon.sources.base import published_from_feed
 
 NAME = "masto"
 INSTANCE = "https://mastodon.social"
@@ -21,13 +22,6 @@ def hashtag(topic: str) -> str:
     """Mastodon serves one RSS feed per hashtag, and hashtags are a single
     alphanumeric token — so collapse the topic to lowercase letters/digits."""
     return re.sub(r"[^0-9a-z]", "", topic.lower())
-
-
-def _published(entry) -> datetime:
-    parsed = getattr(entry, "published_parsed", None)
-    if parsed is None:
-        return datetime.now(timezone.utc)
-    return datetime(*parsed[:6], tzinfo=timezone.utc)
 
 
 def _text(summary: str) -> str:
@@ -58,7 +52,7 @@ def parse_mastodon(text: str) -> list[NewsItem]:
                 source=NAME,
                 title=_text(entry.get("summary", "")) or "(post)",
                 url=link,
-                published=_published(entry),
+                published=published_from_feed(entry),
                 summary="",
                 extra={"author": _author(link)},
             )

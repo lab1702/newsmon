@@ -18,12 +18,19 @@ def parse_gdelt(text: str) -> list[NewsItem]:
     data = json.loads(text)
     items: list[NewsItem] = []
     for art in data.get("articles", []):
+        seendate = art.get("seendate")
+        if not seendate:
+            continue
+        try:
+            published = _published(seendate)
+        except ValueError:
+            continue
         items.append(
             NewsItem(
                 source=NAME,
                 title=art.get("title") or "(untitled)",
                 url=art.get("url", ""),
-                published=_published(art["seendate"]),
+                published=published,
                 summary="",
                 extra={
                     "domain": art.get("domain", ""),

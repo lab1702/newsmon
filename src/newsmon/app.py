@@ -108,8 +108,11 @@ class NewsmonApp(App):
         tz = datetime.now().astimezone().tzinfo
         for item in self.items:
             source, when, title = format_row(item, tz=tz)
-            cell = Text(title, style="bold yellow") if item.dedup_key in self._new_keys else title
-            table.add_row(source, when, cell)
+            # Always wrap the (untrusted) title in Text: a bare str cell is run
+            # through Text.from_markup by DataTable, so brackets in a title would
+            # be interpreted as Rich markup (mangled output or a MarkupError).
+            style = "bold yellow" if item.dedup_key in self._new_keys else ""
+            table.add_row(source, when, Text(title, style=style))
         self.query_one("#sidebar", Static).update(
             render_sidebar(results, self.new_count, self.enabled)
         )
@@ -137,9 +140,13 @@ class NewsmonApp(App):
 
     def action_copy(self) -> None:
         item = self._selected_item()
-        if item is not None:
-            self.copy_to_clipboard(item.url)
-            self.notify(f"Copied: {item.url}")
+        if item is None:
+            return
+        if not is_browsable_url(item.url):
+            self.notify(f"Refused to copy unsafe URL: {item.url}", severity="warning")
+            return
+        self.copy_to_clipboard(item.url)
+        self.notify(f"Copied: {item.url}")
 
 
 def run_app(config: Config) -> None:

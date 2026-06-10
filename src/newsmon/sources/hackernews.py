@@ -4,6 +4,7 @@ import json
 from datetime import datetime
 
 from newsmon.models import NewsItem
+from newsmon.sources.base import parse_iso8601_utc
 
 NAME = "hn"
 ENDPOINT = "https://hn.algolia.com/api/v1/search_by_date"
@@ -13,10 +14,16 @@ def parse_hackernews(text: str) -> list[NewsItem]:
     data = json.loads(text)
     items: list[NewsItem] = []
     for hit in data.get("hits", []):
+        created = hit.get("created_at")
+        if not created:
+            continue
+        try:
+            published = parse_iso8601_utc(created)
+        except ValueError:
+            continue
         object_id = hit.get("objectID", "")
         discussion = f"https://news.ycombinator.com/item?id={object_id}"
         url = hit.get("url") or discussion
-        published = datetime.fromisoformat(hit["created_at"].replace("Z", "+00:00"))
         items.append(
             NewsItem(
                 source=NAME,
