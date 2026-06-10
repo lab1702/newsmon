@@ -6,7 +6,13 @@ from conftest import FakeStreamClient
 
 from newsmon.health import Health
 from newsmon.models import NewsItem
-from newsmon.sources.base import fetch_text, published_from_feed, safe_fetch
+from newsmon.sources.base import (
+    as_dict,
+    as_list,
+    fetch_text,
+    published_from_feed,
+    safe_fetch,
+)
 
 NOW = datetime(2026, 6, 9, 12, 0, tzinfo=timezone.utc)
 
@@ -89,3 +95,20 @@ def test_published_from_feed_out_of_range_falls_back_to_now():
 def test_published_from_feed_uses_valid_timestamp():
     got = published_from_feed(_Entry((2026, 6, 9, 11, 30, 0, 0, 0, 0)))
     assert got == datetime(2026, 6, 9, 11, 30, tzinfo=timezone.utc)
+
+
+def test_as_list_passes_lists_through_and_rejects_other_types():
+    assert as_list([1, 2]) == [1, 2]
+    # Truthy-but-wrong-type values (a string, an int, a dict) coerce to [] so a
+    # parser iterating the result can't crash on a char or a non-iterable.
+    assert as_list("error") == []
+    assert as_list(123) == []
+    assert as_list({"a": 1}) == []
+    assert as_list(None) == []
+
+
+def test_as_dict_passes_dicts_through_and_rejects_other_types():
+    assert as_dict({"a": 1}) == {"a": 1}
+    assert as_dict("oops") == {}
+    assert as_dict([1, 2]) == {}
+    assert as_dict(None) == {}

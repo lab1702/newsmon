@@ -1,3 +1,5 @@
+from datetime import timezone
+
 from newsmon.sources.reddit import parse_reddit
 
 
@@ -16,6 +18,24 @@ def test_parse_reddit(fixtures_dir):
 def test_parse_reddit_null_data_returns_no_items():
     # A present-but-null "data" key must not crash the parser
     assert parse_reddit('{"data": null}') == []
+
+
+def test_parse_reddit_wrong_type_data_returns_no_items():
+    # Truthy-but-wrong-type containers must coerce to empty, not crash.
+    assert parse_reddit('{"data": "error"}') == []
+    assert parse_reddit('{"data": {"children": "nope"}}') == []
+    assert parse_reddit('{"data": {"children": ["x", null]}}') == []
+
+
+def test_parse_reddit_epoch_zero_is_kept_not_restamped_to_now():
+    # created_utc == 0 is a valid Unix epoch (1970), but is falsy; it must be
+    # converted, not mistaken for "missing" and stamped with the current time.
+    text = (
+        '{"data": {"children": [{"data":'
+        ' {"title": "t", "permalink": "/r/x/1/", "created_utc": 0}}]}}'
+    )
+    items = parse_reddit(text)
+    assert items[0].published.astimezone(timezone.utc).year == 1970
 
 
 def test_parse_reddit_null_title_falls_back_to_placeholder():

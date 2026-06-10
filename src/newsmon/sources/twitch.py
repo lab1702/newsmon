@@ -3,9 +3,10 @@ from __future__ import annotations
 import asyncio
 import json
 from datetime import datetime
+from urllib.parse import quote
 
 from newsmon.models import NewsItem
-from newsmon.sources.base import fetch_text, parse_iso8601_utc
+from newsmon.sources.base import as_dict, as_list, fetch_text, parse_iso8601_utc
 
 NAME = "twitch"
 ENDPOINT = "https://gql.twitch.tv/gql"
@@ -32,14 +33,13 @@ query($q: String!) {
 
 def parse_twitch(text: str) -> list[NewsItem]:
     data = json.loads(text)
-    edges = (
-        ((data.get("data") or {}).get("searchFor") or {}).get("channels") or {}
-    ).get("edges") or []
+    search = as_dict(as_dict(data.get("data")).get("searchFor"))
+    edges = as_list(as_dict(search.get("channels")).get("edges"))
     items: list[NewsItem] = []
     for edge in edges:
-        item = edge.get("item") or {}
-        stream = item.get("stream")
-        if not stream:  # skip offline channels
+        item = as_dict(as_dict(edge).get("item"))
+        stream = as_dict(item.get("stream"))
+        if not stream:  # skip offline channels (also coerces wrong-type values)
             continue
         created = stream.get("createdAt")
         if not created:
@@ -49,14 +49,14 @@ def parse_twitch(text: str) -> list[NewsItem]:
         except ValueError:
             continue
         login = item.get("login", "")
-        title = (item.get("broadcastSettings") or {}).get("title", "") or item.get(
+        title = as_dict(item.get("broadcastSettings")).get("title", "") or item.get(
             "displayName", login
         )
         items.append(
             NewsItem(
                 source=NAME,
                 title=title,
-                url=f"https://twitch.tv/{login}",
+                url=f"https://twitch.tv/{quote(login, safe='')}",
                 published=published,
                 summary="",
                 extra={"viewers": stream.get("viewersCount", 0)},

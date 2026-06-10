@@ -3,9 +3,10 @@ from __future__ import annotations
 import asyncio
 import json
 from datetime import datetime
+from urllib.parse import quote
 
 from newsmon.models import NewsItem
-from newsmon.sources.base import fetch_text, parse_iso8601_utc
+from newsmon.sources.base import as_dict, as_list, fetch_text, parse_iso8601_utc
 
 NAME = "hn"
 ENDPOINT = "https://hn.algolia.com/api/v1/search_by_date"
@@ -14,7 +15,8 @@ ENDPOINT = "https://hn.algolia.com/api/v1/search_by_date"
 def parse_hackernews(text: str) -> list[NewsItem]:
     data = json.loads(text)
     items: list[NewsItem] = []
-    for hit in data.get("hits") or []:
+    for hit in as_list(data.get("hits")):
+        hit = as_dict(hit)
         created = hit.get("created_at")
         if not created:
             continue
@@ -23,7 +25,9 @@ def parse_hackernews(text: str) -> list[NewsItem]:
         except ValueError:
             continue
         object_id = hit.get("objectID", "")
-        discussion = f"https://news.ycombinator.com/item?id={object_id}"
+        discussion = (
+            f"https://news.ycombinator.com/item?id={quote(str(object_id), safe='')}"
+        )
         url = hit.get("url") or discussion
         items.append(
             NewsItem(

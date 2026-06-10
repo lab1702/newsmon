@@ -5,7 +5,7 @@ import json
 from datetime import datetime, timezone
 
 from newsmon.models import NewsItem
-from newsmon.sources.base import fetch_text
+from newsmon.sources.base import as_dict, as_list, fetch_text
 
 NAME = "gdelt"
 ENDPOINT = "https://api.gdeltproject.org/api/v2/doc/doc"
@@ -19,7 +19,8 @@ def _published(seendate: str) -> datetime:
 def parse_gdelt(text: str) -> list[NewsItem]:
     data = json.loads(text)
     items: list[NewsItem] = []
-    for art in data.get("articles") or []:
+    for art in as_list(data.get("articles")):
+        art = as_dict(art)
         seendate = art.get("seendate")
         if not seendate:
             continue

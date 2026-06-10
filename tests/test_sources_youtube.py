@@ -69,6 +69,18 @@ def test_extract_initial_data_absent():
     assert _extract_initial_data("<html>no data here</html>") is None
 
 
+def test_parse_youtube_encodes_video_id_in_url():
+    # A corrupted/hostile videoId must be percent-encoded so it can't inject
+    # extra query params into the watch URL.
+    html = (
+        'ytInitialData = {"videoRenderer": {"videoId": "abc&t=100",'
+        ' "publishedTimeText": {"simpleText": "1 hour ago"},'
+        ' "title": {"runs": [{"text": "t"}]}}};</script>'
+    )
+    items = parse_youtube(html, NOW)
+    assert items[0].url == "https://www.youtube.com/watch?v=abc%26t%3D100"
+
+
 def test_parse_youtube_skips_renderer_missing_run_text():
     # A title run without a "text" key must drop only that video, not abort all.
     html = (

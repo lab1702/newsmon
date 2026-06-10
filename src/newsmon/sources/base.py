@@ -31,6 +31,22 @@ def parse_iso8601_utc(value: str) -> datetime:
     return datetime.fromisoformat(value.replace("Z", "+00:00"))
 
 
+def as_list(value) -> list:
+    """Coerce a JSON value to a list, returning [] for anything else.
+
+    The ``value or []`` idiom only guards against falsy values; a truthy-but-
+    wrong-type field (e.g. ``{"articles": "error"}`` from an upstream error page
+    or schema drift) would otherwise be iterated as a string and crash the parser
+    on the next ``.get()``. This skips the bad field instead of nuking the source.
+    """
+    return value if isinstance(value, list) else []
+
+
+def as_dict(value) -> dict:
+    """Coerce a JSON value to a dict, returning {} for anything else. See as_list."""
+    return value if isinstance(value, dict) else {}
+
+
 MAX_RESPONSE_BYTES = 8 * 1024 * 1024  # 8 MiB ceiling per response
 
 

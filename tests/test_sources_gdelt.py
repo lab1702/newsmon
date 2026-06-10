@@ -29,6 +29,18 @@ def test_parse_gdelt_null_articles_returns_no_items():
     assert parse_gdelt('{"articles": null}') == []
 
 
+def test_parse_gdelt_wrong_type_articles_returns_no_items():
+    # A truthy-but-wrong-type "articles" (e.g. an upstream error page) must not
+    # be iterated as a string and crash the parser.
+    assert parse_gdelt('{"articles": "error"}') == []
+    assert parse_gdelt('{"articles": 123}') == []
+
+
+def test_parse_gdelt_non_dict_article_is_skipped():
+    # A non-dict element in the articles list must be skipped, not crashed on.
+    assert parse_gdelt('{"articles": ["x", null, 5]}') == []
+
+
 async def test_fetch_sorts_newest_first(fixtures_dir):
     text = (fixtures_dir / "gdelt.json").read_text()
     client = FakeStreamClient(text)
