@@ -27,7 +27,14 @@ def _sources(value: str) -> list[str]:
     unknown = [n for n in names if n not in ALL_SOURCE_NAMES]
     if unknown:
         raise argparse.ArgumentTypeError(f"unknown source(s): {', '.join(unknown)}")
-    return names
+    if not names:
+        # An all-empty value (",,," / " ") must not silently disable every source
+        # — that path is reserved for omitting the flag (default=None → all on).
+        raise argparse.ArgumentTypeError("no valid source names provided")
+    # Normalize to canonical registry order and drop duplicates, matching what
+    # build_sources actually instantiates, so the accepted value reflects use.
+    requested = set(names)
+    return [n for n in ALL_SOURCE_NAMES if n in requested]
 
 
 def parse_args(argv: list[str] | None = None) -> Config:

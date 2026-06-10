@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 from datetime import datetime, timezone
 
@@ -19,13 +20,19 @@ def parse_reddit(text: str) -> list[NewsItem]:
         permalink = post.get("permalink", "")
         url = f"https://www.reddit.com{permalink}" if permalink else post.get("url", "")
         created = post.get("created_utc")
-        published = (
-            datetime.fromtimestamp(created, tz=timezone.utc) if created else utcnow()
-        )
+        try:
+            published = (
+                datetime.fromtimestamp(created, tz=timezone.utc)
+                if created
+                else utcnow()
+            )
+        except (TypeError, ValueError, OverflowError):
+            # A malformed/non-numeric created_utc must not lose the whole batch.
+            published = utcnow()
         items.append(
             NewsItem(
                 source=NAME,
-                title=post.get("title", "(untitled)"),
+                title=post.get("title") or "(untitled)",
                 url=url,
                 published=published,
                 summary="",
@@ -47,4 +54,4 @@ class RedditSource:
         text = await fetch_text(
             client, ENDPOINT, params=params, headers={"User-Agent": USER_AGENT}
         )
-        return parse_reddit(text)
+        return await asyncio.to_thread(parse_reddit, text)

@@ -1,14 +1,23 @@
 from __future__ import annotations
 
-from datetime import tzinfo
+from datetime import datetime, tzinfo
 from urllib.parse import urlsplit
 
 from newsmon.health import Health, SourceResult
 from newsmon.models import NewsItem
 
+# Digit keys 1-9 toggle the Nth source; sources past the 9th have no toggle key.
+MAX_TOGGLE_KEYS = 9
+
 
 def is_browsable_url(url: str) -> bool:
-    """True only for http/https URLs with a host — safe to hand to the OS browser."""
+    """True only for http/https URLs with a host — safe to hand to the OS browser.
+    Any control character (tab/CR/LF, etc.) is rejected: ``urlsplit`` silently
+    strips them, so such a URL would pass this check yet keep the control char in
+    the raw string we open/copy — an embedded newline in a copied URL is a
+    terminal paste-injection vector."""
+    if any(ord(ch) < 0x20 or ord(ch) == 0x7F for ch in url):
+        return False
     parts = urlsplit(url)
     return parts.scheme in ("http", "https") and bool(parts.netloc)
 
@@ -16,9 +25,16 @@ def is_browsable_url(url: str) -> bool:
 _HEALTH_ICONS = {Health.OK: "✅", Health.SLOW: "⚠️", Health.FAILED: "❌"}
 
 
-def format_row(item: NewsItem, tz: tzinfo) -> tuple[str, str, str]:
-    when = item.published.astimezone(tz).strftime("%H:%M")
-    return item.source, when, item.title
+def format_row(
+    item: NewsItem, tz: tzinfo, now: datetime | None = None
+) -> tuple[str, str, str]:
+    local = item.published.astimezone(tz)
+    # Show only HH:MM for today's items; once the recency window (--hours) can
+    # span more than a day, prefix the date so same-time items on different days
+    # don't render identically.
+    today = (now or datetime.now(tz)).date()
+    fmt = "%H:%M" if local.date() == today else "%m-%d %H:%M"
+    return item.source, local.strftime(fmt), item.title
 
 
 def render_sidebar(
@@ -31,7 +47,10 @@ def render_sidebar(
     lines = [f"🔴 {new_count} new", ""]
     for idx, result in enumerate(results, 1):
         health = _HEALTH_ICONS.get(result.health, "?")
-        line = f"{idx} {health} {result.name:<7} {result.count}"
+        # Only the first MAX_TOGGLE_KEYS sources get a digit toggle key; show a
+        # blank rather than an unpressable number for any beyond that.
+        prefix = str(idx) if idx <= MAX_TOGGLE_KEYS else " "
+        line = f"{prefix} {health} {result.name:<7} {result.count}"
         if enabled is not None and result.name not in enabled:
             line = f"[dim]{line}  off[/dim]"
         lines.append(line)

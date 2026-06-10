@@ -25,3 +25,14 @@ def test_all_flags():
 def test_unknown_source_rejected():
     with pytest.raises(SystemExit):
         parse_args(["quake", "--sources", "web,pigeon"])
+
+
+def test_empty_sources_value_rejected():
+    # An all-empty value must error, not silently disable every source.
+    with pytest.raises(SystemExit):
+        parse_args(["quake", "--sources", ",,,"])
+
+
+def test_sources_normalized_to_registry_order_and_deduped():
+    cfg = parse_args(["quake", "--sources", "hn,web,hn"])
+    assert cfg.sources == ["web", "hn"]  # registry order, duplicate dropped

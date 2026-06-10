@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 from datetime import datetime
 
@@ -73,4 +74,4 @@ class TwitchSource:
             client, ENDPOINT, method="POST", json=payload,
             headers={"Client-Id": CLIENT_ID},
         )
-        return parse_twitch(text)
+        return await asyncio.to_thread(parse_twitch, text)

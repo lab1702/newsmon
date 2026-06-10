@@ -16,3 +16,20 @@ def test_parse_reddit(fixtures_dir):
 def test_parse_reddit_null_data_returns_no_items():
     # A present-but-null "data" key must not crash the parser
     assert parse_reddit('{"data": null}') == []
+
+
+def test_parse_reddit_null_title_falls_back_to_placeholder():
+    text = '{"data": {"children": [{"data": {"title": null, "permalink": "/r/x/1/"}}]}}'
+    items = parse_reddit(text)
+    assert items[0].title == "(untitled)"
+
+
+def test_parse_reddit_bad_timestamp_does_not_lose_batch():
+    # A non-numeric created_utc must fall back to now(), not raise away the batch.
+    text = (
+        '{"data": {"children": [{"data":'
+        ' {"title": "t", "permalink": "/r/x/1/", "created_utc": "oops"}}]}}'
+    )
+    items = parse_reddit(text)
+    assert len(items) == 1
+    assert items[0].published.tzinfo is not None

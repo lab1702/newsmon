@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import html
 import re
 from datetime import datetime
@@ -68,4 +69,4 @@ class MastodonSource:
         if not tag:
             return []
         text = await fetch_text(client, f"{INSTANCE}/tags/{tag}.rss")
-        return parse_mastodon(text)
+        return await asyncio.to_thread(parse_mastodon, text)

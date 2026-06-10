@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 from datetime import datetime
 
@@ -52,4 +53,4 @@ class HackerNewsSource:
             "numericFilters": f"created_at_i>{int(since.timestamp())}",
         }
         text = await fetch_text(client, ENDPOINT, params=params)
-        return parse_hackernews(text)
+        return await asyncio.to_thread(parse_hackernews, text)

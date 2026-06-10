@@ -15,7 +15,12 @@ from newsmon.cli import Config
 from newsmon.health import SourceResult
 from newsmon.models import NewsItem
 from newsmon.sources import build_sources
-from newsmon.ui import format_row, is_browsable_url, render_sidebar
+from newsmon.ui import (
+    MAX_TOGGLE_KEYS,
+    format_row,
+    is_browsable_url,
+    render_sidebar,
+)
 
 REQUEST_TIMEOUT = 15.0
 SLOW_AFTER = 8.0
@@ -34,7 +39,7 @@ class NewsmonApp(App):
     ] + [
         # Digit keys toggle the Nth active source (see sidebar); hidden from footer.
         Binding(str(n), f"toggle_source({n})", f"Toggle source {n}", show=False)
-        for n in range(1, 10)
+        for n in range(1, MAX_TOGGLE_KEYS + 1)
     ]
 
     def __init__(self, config: Config) -> None:
@@ -87,12 +92,15 @@ class NewsmonApp(App):
             )
             merged = merge_items(results, since)
             new = self.tracker.mark_new(merged)
-            self.new_count += len(new)
+            # Count and alert only for new items the user can actually see; items
+            # from a toggled-off source must not inflate the badge or ring the bell.
+            new_in_view = [i for i in new if i.source in self.enabled]
+            self.new_count += len(new_in_view)
             self._new_keys = {item.dedup_key for item in new}
             self._all_items = merged
             self._latest_results = results
             self._refresh_view()
-            if new and self.config.bell:
+            if new_in_view and self.config.bell:
                 self.bell()
         finally:
             self._refreshing = False
@@ -116,8 +124,9 @@ class NewsmonApp(App):
         table = self.query_one("#stream", DataTable)
         table.clear()
         tz = datetime.now().astimezone().tzinfo
+        now = datetime.now(tz)
         for item in self.items:
-            source, when, title = format_row(item, tz=tz)
+            source, when, title = format_row(item, tz=tz, now=now)
             # Always wrap the (untrusted) title in Text: a bare str cell is run
             # through Text.from_markup by DataTable, so brackets in a title would
             # be interpreted as Rich markup (mangled output or a MarkupError).
@@ -146,17 +155,26 @@ class NewsmonApp(App):
         if is_browsable_url(item.url):
             webbrowser.open(item.url)
         else:
-            self.notify(f"Refused to open unsafe URL: {item.url}", severity="warning")
+            # markup=False: the URL is untrusted data, not Textual content markup.
+            self.notify(
+                f"Refused to open unsafe URL: {item.url}",
+                severity="warning",
+                markup=False,
+            )
 
     def action_copy(self) -> None:
         item = self._selected_item()
         if item is None:
             return
         if not is_browsable_url(item.url):
-            self.notify(f"Refused to copy unsafe URL: {item.url}", severity="warning")
+            self.notify(
+                f"Refused to copy unsafe URL: {item.url}",
+                severity="warning",
+                markup=False,
+            )
             return
         self.copy_to_clipboard(item.url)
-        self.notify(f"Copied: {item.url}")
+        self.notify(f"Copied: {item.url}", markup=False)
 
 
 def run_app(config: Config) -> None:
