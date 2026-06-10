@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import re
 from datetime import datetime, timezone
 from typing import Protocol
 
@@ -27,8 +28,37 @@ def published_from_feed(entry) -> datetime:
 
 
 def parse_iso8601_utc(value: str) -> datetime:
-    """Parse an ISO-8601 timestamp, normalizing a trailing 'Z' to +00:00."""
-    return datetime.fromisoformat(value.replace("Z", "+00:00"))
+    """Parse an ISO-8601 timestamp as timezone-aware UTC.
+
+    A trailing 'Z' is normalized to +00:00; a value carrying no offset at all is
+    assumed UTC. Returning a naive datetime would slip past the callers' guards
+    and later crash the tz-aware comparison in ``merge_items`` (which runs outside
+    ``safe_fetch``), taking down the whole poll for every source.
+    """
+    dt = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    return dt if dt.tzinfo is not None else dt.replace(tzinfo=timezone.utc)
+
+
+# Bidirectional-override and C0/C1 control characters are stripped from any
+# untrusted feed text before it reaches the terminal: a hostile (e.g. federated)
+# source can otherwise embed raw ANSI/BEL escapes to corrupt the screen, or a
+# U+202E RTL override to visually spoof a headline.
+_BIDI_RE = re.compile("[\u200e\u200f\u202a-\u202e\u2066-\u2069]")
+_CONTROL_RE = re.compile(r"[\x00-\x1f\x7f-\x9f]")
+_WS_RE = re.compile(r"\s+")
+
+
+def clean_text(value: str, max_len: int | None = None) -> str:
+    """Sanitize untrusted feed text for terminal rendering: drop bidi-override
+    chars, replace C0/C1 controls (incl. tab/newline) with a space so adjacent
+    words don't fuse, collapse runs of whitespace, and optionally truncate with
+    an ellipsis."""
+    text = _BIDI_RE.sub("", value)
+    text = _CONTROL_RE.sub(" ", text)
+    text = _WS_RE.sub(" ", text).strip()
+    if max_len is not None and len(text) > max_len:
+        text = text[: max_len - 1].rstrip() + "…"
+    return text
 
 
 def as_list(value) -> list:
