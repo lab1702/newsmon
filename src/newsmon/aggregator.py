@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from collections import OrderedDict
 from datetime import datetime
 
 from newsmon.health import SourceResult
@@ -25,21 +26,31 @@ def merge_items(results: list[SourceResult], since: datetime) -> list[NewsItem]:
     return out
 
 
-class SeenTracker:
-    """Tracks dedup keys across polls; the first poll establishes the baseline."""
+MAX_SEEN_KEYS = 50_000  # cap sits far above any realistic recency window
 
-    def __init__(self) -> None:
-        self._seen: set[str] = set()
+
+class SeenTracker:
+    """Tracks dedup keys across polls; the first poll establishes the baseline.
+    Keys are capped with oldest-first eviction so a long-running monitor can't
+    grow the set without bound; the cap is large enough that evicted keys are
+    always well outside the recency window and won't reappear to be re-flagged."""
+
+    def __init__(self, max_keys: int = MAX_SEEN_KEYS) -> None:
+        self._seen: OrderedDict[str, None] = OrderedDict()
+        self._max_keys = max_keys
         self._baseline_set = False
 
     def mark_new(self, items: list[NewsItem]) -> list[NewsItem]:
         new: list[NewsItem] = []
         for item in items:
             key = item.dedup_key
-            if key not in self._seen:
-                self._seen.add(key)
-                if self._baseline_set:
-                    new.append(item)
+            if key in self._seen:
+                continue
+            self._seen[key] = None
+            if len(self._seen) > self._max_keys:
+                self._seen.popitem(last=False)
+            if self._baseline_set:
+                new.append(item)
         self._baseline_set = True
         return new
 
