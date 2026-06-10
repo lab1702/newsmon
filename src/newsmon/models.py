@@ -2,10 +2,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
+from functools import cached_property
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class NewsItem:
     source: str
     title: str
@@ -14,7 +15,7 @@ class NewsItem:
     summary: str = ""
     extra: dict = field(default_factory=dict)
 
-    @property
+    @cached_property
     def dedup_key(self) -> str:
         parts = urlsplit(self.url)
         host = parts.hostname or ""
@@ -26,4 +27,7 @@ class NewsItem:
                 if not k.lower().startswith("utm_")
             )
         )
-        return urlunsplit(("", host.lower(), path, query, ""))
+        key = urlunsplit(("", host.lower(), path, query, ""))
+        # URL-less items would all normalize to "" and collapse into one;
+        # fall back to a per-item key so distinct items stay distinct.
+        return key or f"{self.source}\x00{self.title}"

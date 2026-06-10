@@ -4,6 +4,7 @@ import json
 from datetime import datetime
 
 from newsmon.models import NewsItem
+from newsmon.sources.base import parse_iso8601_utc
 
 NAME = "twitch"
 ENDPOINT = "https://gql.twitch.tv/gql"
@@ -42,11 +43,17 @@ def parse_twitch(text: str) -> list[NewsItem]:
         stream = item.get("stream")
         if not stream:  # skip offline channels
             continue
+        created = stream.get("createdAt")
+        if not created:
+            continue
+        try:
+            published = parse_iso8601_utc(created)
+        except ValueError:
+            continue
         login = item.get("login", "")
         title = (item.get("broadcastSettings") or {}).get("title", "") or item.get(
             "displayName", login
         )
-        published = datetime.fromisoformat(stream["createdAt"].replace("Z", "+00:00"))
         items.append(
             NewsItem(
                 source=NAME,

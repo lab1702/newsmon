@@ -1,20 +1,14 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime
 
 import feedparser
 
 from newsmon.models import NewsItem
+from newsmon.sources.base import published_from_feed
 
 NAME = "web"
 ENDPOINT = "https://news.google.com/rss/search"
-
-
-def _published(entry) -> datetime:
-    parsed = getattr(entry, "published_parsed", None)
-    if parsed is None:
-        return datetime.now(timezone.utc)
-    return datetime(*parsed[:6], tzinfo=timezone.utc)
 
 
 def parse_google_news(text: str) -> list[NewsItem]:
@@ -30,7 +24,7 @@ def parse_google_news(text: str) -> list[NewsItem]:
                 source=NAME,
                 title=entry.get("title", "(untitled)"),
                 url=entry.get("link", ""),
-                published=_published(entry),
+                published=published_from_feed(entry),
                 summary=entry.get("summary", ""),
                 extra={"outlet": outlet},
             )

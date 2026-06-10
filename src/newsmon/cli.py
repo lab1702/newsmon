@@ -15,6 +15,13 @@ class Config:
     sources: list[str] | None = None
 
 
+def _positive_int(value: str) -> int:
+    ivalue = int(value)
+    if ivalue <= 0:
+        raise argparse.ArgumentTypeError(f"must be a positive integer, got {value}")
+    return ivalue
+
+
 def _sources(value: str) -> list[str]:
     names = [v.strip() for v in value.split(",") if v.strip()]
     unknown = [n for n in names if n not in ALL_SOURCE_NAMES]
@@ -28,8 +35,10 @@ def parse_args(argv: list[str] | None = None) -> Config:
         prog="newsmon", description="Keyless breaking-news TUI"
     )
     parser.add_argument("topic", help="topic keywords (quote if multi-word)")
-    parser.add_argument("--hours", type=int, default=6, help="recency window")
-    parser.add_argument("--interval", type=int, default=60, help="poll seconds")
+    parser.add_argument("--hours", type=_positive_int, default=6, help="recency window")
+    parser.add_argument(
+        "--interval", type=_positive_int, default=60, help="poll seconds"
+    )
     parser.add_argument("--bell", action="store_true", help="bell on live arrivals")
     parser.add_argument(
         "--sources",

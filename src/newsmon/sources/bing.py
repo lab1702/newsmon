@@ -1,23 +1,17 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime
 from urllib.parse import parse_qs, unquote, urlsplit
 
 import feedparser
 
 from newsmon.models import NewsItem
+from newsmon.sources.base import published_from_feed
 
 NAME = "bing"
 ENDPOINT = "https://www.bing.com/news/search"
 # Bing serves the RSS feed only to browser-like clients.
 USER_AGENT = "Mozilla/5.0 (compatible; newsmon/1.0)"
-
-
-def _published(entry) -> datetime:
-    parsed = getattr(entry, "published_parsed", None)
-    if parsed is None:
-        return datetime.now(timezone.utc)
-    return datetime(*parsed[:6], tzinfo=timezone.utc)
 
 
 def _unwrap(link: str) -> str:
@@ -36,7 +30,7 @@ def parse_bing_news(text: str) -> list[NewsItem]:
                 source=NAME,
                 title=entry.get("title", "(untitled)"),
                 url=_unwrap(entry.get("link", "")),
-                published=_published(entry),
+                published=published_from_feed(entry),
                 summary=entry.get("summary", ""),
                 extra={"outlet": entry.get("news_source", "")},
             )
