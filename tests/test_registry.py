@@ -4,7 +4,17 @@ from newsmon.sources import ALL_SOURCE_NAMES, build_sources
 
 
 def test_all_source_names():
-    assert ALL_SOURCE_NAMES == ["web", "hn", "reddit", "youtube", "twitch", "x"]
+    assert ALL_SOURCE_NAMES == [
+        "web",
+        "hn",
+        "reddit",
+        "youtube",
+        "twitch",
+        "x",
+        "bing",
+        "gdelt",
+        "masto",
+    ]
 
 
 def test_build_all_by_default():

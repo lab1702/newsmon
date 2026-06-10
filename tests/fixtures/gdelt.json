@@ -1,0 +1,22 @@
+{
+  "articles": [
+    {
+      "url": "https://example.com/quake-tool",
+      "url_mobile": "",
+      "title": "Major quake strikes coast",
+      "seendate": "20260609T113000Z",
+      "socialimage": "https://example.com/img.jpg",
+      "domain": "example.com",
+      "language": "English",
+      "sourcecountry": "United States"
+    },
+    {
+      "url": "https://example.org/aftershocks",
+      "title": "Aftershocks continue",
+      "seendate": "20260609T100000Z",
+      "domain": "example.org",
+      "language": "Japanese",
+      "sourcecountry": "Japan"
+    }
+  ]
+}

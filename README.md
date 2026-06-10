@@ -35,7 +35,7 @@ python -m newsmon "topic keywords"
 
 ```
 newsmon "topic keywords" [--hours 6] [--interval 60] [--bell] \
-        [--sources web,hn,reddit,youtube,twitch,x]
+        [--sources web,hn,reddit,youtube,twitch,x,bing,gdelt,masto]
 ```
 
 | Flag | Default | Meaning |
@@ -50,7 +50,7 @@ newsmon "topic keywords" [--hours 6] [--interval 60] [--bell] \
 
 | Key | Action |
 |-----|--------|
-| `1`–`6` | Toggle the Nth source on/off in the stream (numbers shown in the sidebar) |
+| `1`–`9` | Toggle the Nth source on/off in the stream (numbers shown in the sidebar) |
 | `r` | Refresh now |
 | `Enter` | Open the selected item in your browser |
 | `y` | Copy the selected item's URL to the clipboard |
@@ -70,19 +70,27 @@ are best-effort and surfaced with a health indicator (✅ ok / ⚠️ slow /
 | Source | Method | Reliability |
 |--------|--------|-------------|
 | 📰 Web news (`web`) | Google News RSS search | solid |
+| 🅱️ Bing news (`bing`) | Bing News RSS search (redirect links unwrapped) | solid |
 | 🟧 Hacker News (`hn`) | Algolia search API (date-filtered) | solid |
+| 🌐 GDELT (`gdelt`) | GDELT 2.0 Doc API, `artlist` JSON, newest-first | solid — global news monitor; throttled to 1 req/5s |
+| 🐘 Mastodon (`masto`) | `mastodon.social` hashtag RSS | solid for single-word topics |
 | 👽 Reddit (`reddit`) | `reddit.com/search.json` | best-effort — often `403`s without OAuth |
 | ▶️ YouTube (`youtube`) | scrape search results (`ytInitialData`), upload-date sort | fragile — depends on page structure |
 | 🟣 Twitch (`twitch`) | public web Client-ID GQL search | fragile |
 | 𝕏 X/Twitter (`x`) | Nitter instance search RSS (rotating list) | very fragile — most instances are down |
 
-**Reliability in practice:** the dependable backbone today is **web + YouTube +
-Hacker News**. Reddit's keyless JSON search increasingly returns `403`, and
-public Nitter instances are mostly offline — so Reddit and X frequently show
-`❌` in the sidebar. This is expected, not a crash: each source is isolated, and
-a failing one only affects its own row. Because the architecture isolates every
-source behind one interface, adding an authenticated path for Reddit/Twitch/X
-later would be a drop-in change.
+**Reliability in practice:** the dependable backbone today is **web + bing +
+GDELT + YouTube + Hacker News**, with **Mastodon** giving a working social feed
+where X/Nitter no longer does. Two caveats on the keyless additions: Mastodon
+serves one feed *per hashtag*, so multi-word topics collapse to a single tag
+(`los angeles` → `#losangeles`) and lose precision; and GDELT asks callers to
+stay under one request every five seconds — well within the default `--interval
+60`, but tighten the interval at your own risk. Reddit's keyless JSON search
+increasingly returns `403`, and public Nitter instances are mostly offline — so
+Reddit and X frequently show `❌` in the sidebar. This is expected, not a crash:
+each source is isolated, and a failing one only affects its own row. Because the
+architecture isolates every source behind one interface, adding an authenticated
+path for Reddit/Twitch/X later would be a drop-in change.
 
 ## How it works
 

@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:webfeeds="http://webfeeds.org/rss/1.0" xmlns:media="http://search.yahoo.com/mrss/">
+  <channel>
+    <title>#earthquake</title>
+    <description>Public posts tagged #earthquake</description>
+    <link>https://mastodon.social/tags/earthquake</link>
+    <item>
+      <guid isPermaLink="true">https://masto.ai/@emsc/116723066958008109</guid>
+      <link>https://masto.ai/@emsc/116723066958008109</link>
+      <pubDate>Tue, 09 Jun 2026 11:30:00 +0000</pubDate>
+      <description>&lt;p&gt;M 4.6 earthquake detected near the coast &lt;a href="https://masto.ai/tags/earthquake"&gt;#&lt;span&gt;earthquake&lt;/span&gt;&lt;/a&gt;&lt;/p&gt;</description>
+    </item>
+    <item>
+      <guid isPermaLink="true">https://mstdn.social/@earthquake_monitor/116723063333843673</guid>
+      <link>https://mstdn.social/@earthquake_monitor/116723063333843673</link>
+      <pubDate>Tue, 09 Jun 2026 10:00:00 +0000</pubDate>
+      <description>&lt;p&gt;New aftershock recorded offshore&lt;/p&gt;</description>
+    </item>
+  </channel>
+</rss>
