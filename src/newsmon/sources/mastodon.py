@@ -34,7 +34,12 @@ def _text(summary: str) -> str:
 
 def _author(link: str) -> str:
     """A post URL is https://<instance>/@<handle>/<id>; rebuild @handle@instance."""
-    parts = urlsplit(link)
+    try:
+        parts = urlsplit(link)
+    except ValueError:
+        # A malformed authority (e.g. unterminated IPv6 literal) from a hostile
+        # federated post must degrade to no author, not abort the whole feed.
+        return ""
     segments = [s for s in parts.path.split("/") if s]
     handle = segments[0] if segments and segments[0].startswith("@") else ""
     if not handle or not parts.hostname:

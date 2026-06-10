@@ -5,7 +5,7 @@ import json
 from datetime import datetime, timezone
 
 from newsmon.models import NewsItem
-from newsmon.sources.base import as_dict, as_list, fetch_text
+from newsmon.sources.base import as_dict, as_list, fetch_text, utcnow
 
 NAME = "gdelt"
 ENDPOINT = "https://api.gdeltproject.org/api/v2/doc/doc"
@@ -13,7 +13,14 @@ ENDPOINT = "https://api.gdeltproject.org/api/v2/doc/doc"
 
 def _published(seendate: str) -> datetime:
     # GDELT timestamps look like "20260609T113000Z" and are always UTC.
-    return datetime.strptime(seendate, "%Y%m%dT%H%M%SZ").replace(tzinfo=timezone.utc)
+    dt = datetime.strptime(seendate, "%Y%m%dT%H%M%SZ").replace(tzinfo=timezone.utc)
+    # strptime accepts absurd years (e.g. 9999) that parse fine here but later
+    # overflow astimezone() in the shared render loop — outside safe_fetch —
+    # crashing the whole TUI for users east of UTC. Reject an out-of-range year
+    # as unparseable so the caller's `except ValueError` skips just this record.
+    if not 1970 <= dt.year <= utcnow().year + 1:
+        raise ValueError(f"implausible year in seendate: {seendate!r}")
+    return dt
 
 
 def parse_gdelt(text: str) -> list[NewsItem]:

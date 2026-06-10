@@ -48,6 +48,18 @@ def test_parse_gdelt_non_string_seendate_is_skipped():
     assert parse_gdelt(text) == []
 
 
+def test_parse_gdelt_far_future_year_is_skipped():
+    # A syntactically valid but absurd far-future year (9999) parses fine via
+    # strptime but later overflows astimezone() in the shared render loop —
+    # crashing the whole TUI for any user east of UTC. Treat an out-of-range
+    # year as unparseable and skip the record, like the ValueError case.
+    text = (
+        '{"articles": [{"seendate": "99991231T235959Z", "title": "t",'
+        ' "url": "https://e/a"}]}'
+    )
+    assert parse_gdelt(text) == []
+
+
 def test_parse_gdelt_non_string_url_becomes_empty():
     text = (
         '{"articles": [{"seendate": "20260609T113000Z", "title": "t", "url": 123}]}'

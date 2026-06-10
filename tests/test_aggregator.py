@@ -79,6 +79,25 @@ def test_seen_tracker_caps_memory_with_oldest_eviction():
     assert [i.url for i in new] == ["https://a.com/1"]
 
 
+def test_seen_tracker_evicts_oldest_within_a_single_poll():
+    # merge_items delivers a poll newest-first. When a single poll exceeds the
+    # cap, eviction must drop the OLDEST keys (which leave the recency window
+    # first), keeping the newest — otherwise the still-in-window newest items are
+    # re-flagged 'new' on every poll and ring the bell endlessly.
+    tracker = SeenTracker(max_keys=2)
+    newest_first = [
+        _item("https://a.com/3", 1),
+        _item("https://a.com/2", 5),
+        _item("https://a.com/1", 9),
+    ]
+    tracker.mark_new(newest_first)  # baseline; cap=2 must keep the 2 newest (3, 2)
+    # the two newest are still remembered → presenting them again flags nothing
+    new = tracker.mark_new(
+        [_item("https://a.com/3", 1), _item("https://a.com/2", 5)]
+    )
+    assert new == []
+
+
 def test_merge_survives_poisoned_items_without_aborting_the_whole_poll():
     # merge_items runs OUTSIDE safe_fetch: a single malformed scalar that slipped
     # past a parser must not crash the merge and discard every source's results.
