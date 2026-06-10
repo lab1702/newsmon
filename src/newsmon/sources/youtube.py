@@ -10,7 +10,7 @@ from newsmon.sources.base import fetch_text
 NAME = "youtube"
 # sp="CAI=" → encoded to sp=CAI%3D on the wire, which sorts results by upload date
 ENDPOINT = "https://www.youtube.com/results"
-_DATA_RE = re.compile(r"ytInitialData\s*=\s*(\{.*?\})\s*;\s*</script>", re.DOTALL)
+_DATA_MARKER = re.compile(r"ytInitialData\s*=\s*")
 _REL_RE = re.compile(r"(\d+)\s+(second|minute|hour|day|week|month|year)s?\s+ago")
 _UNIT_DAYS = {
     "second": 1 / 86400,
@@ -51,14 +51,47 @@ def _walk_video_renderers(node):
 
 def _text(node: dict, key: str) -> str:
     runs = (node.get(key) or {}).get("runs") or []
-    return runs[0]["text"] if runs else ""
+    return runs[0].get("text", "") if runs else ""
+
+
+def _extract_initial_data(html: str) -> str | None:
+    """Return the `ytInitialData = {...}` object as raw JSON via a brace-balanced
+    scan (string-aware), rather than a regex that assumes a `};</script>` suffix
+    — YouTube periodically appends more script after the assignment."""
+    marker = _DATA_MARKER.search(html)
+    if not marker:
+        return None
+    start = html.find("{", marker.end())
+    if start == -1:
+        return None
+    depth = 0
+    in_str = False
+    escape = False
+    for i in range(start, len(html)):
+        ch = html[i]
+        if in_str:
+            if escape:
+                escape = False
+            elif ch == "\\":
+                escape = True
+            elif ch == '"':
+                in_str = False
+        elif ch == '"':
+            in_str = True
+        elif ch == "{":
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+            if depth == 0:
+                return html[start : i + 1]
+    return None
 
 
 def parse_youtube(html: str, now: datetime) -> list[NewsItem]:
-    match = _DATA_RE.search(html)
-    if not match:
+    raw = _extract_initial_data(html)
+    if raw is None:
         return []
-    data = json.loads(match.group(1))
+    data = json.loads(raw)
     items: list[NewsItem] = []
     for vr in _walk_video_renderers(data):
         video_id = vr.get("videoId")

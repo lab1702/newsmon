@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from urllib.parse import parse_qs, unquote, urlsplit
+from urllib.parse import parse_qs, urlsplit
 
 import feedparser
 
@@ -16,9 +16,10 @@ USER_AGENT = "Mozilla/5.0 (compatible; newsmon/1.0)"
 
 def _unwrap(link: str) -> str:
     """Bing wraps each article link in an apiclick redirect; the real article
-    URL rides in the `url` query parameter. Fall back to the link itself."""
+    URL rides in the `url` query parameter. Fall back to the link itself.
+    `parse_qs` already percent-decodes the value, so don't unquote it again."""
     target = parse_qs(urlsplit(link).query).get("url")
-    return unquote(target[0]) if target else link
+    return target[0] if target else link
 
 
 def parse_bing_news(text: str) -> list[NewsItem]:

@@ -19,6 +19,9 @@ def test_parse_nitter(fixtures_dir):
     [
         ("https://nitter.net/user/status/1234#m", "https://x.com/user/status/1234"),
         ("https://nitter.example/a/status/9?x=1", "https://x.com/a/status/9"),
+        # missing/host-only links have no path to map and must not fabricate a URL
+        ("", ""),
+        ("https://nitter.net/", ""),
     ],
 )
 def test_normalize_to_x_url(raw, expected):

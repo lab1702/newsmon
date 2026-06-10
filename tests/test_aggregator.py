@@ -59,6 +59,17 @@ def test_seen_tracker_reports_only_unseen_after_baseline():
     assert [i.url for i in new] == ["https://a.com/2"]
 
 
+def test_seen_tracker_caps_memory_with_oldest_eviction():
+    tracker = SeenTracker(max_keys=2)
+    tracker.mark_new([_item("https://a.com/1", 1)])  # baseline; seen={1}
+    tracker.mark_new([_item("https://a.com/2", 1)])  # seen={1,2}
+    tracker.mark_new([_item("https://a.com/3", 1)])  # over cap → evict oldest (1)
+    assert len(tracker._seen) == 2
+    # key 1 was evicted, so it now looks new again; key 3 is still remembered
+    new = tracker.mark_new([_item("https://a.com/1", 1), _item("https://a.com/3", 1)])
+    assert [i.url for i in new] == ["https://a.com/1"]
+
+
 class _Src:
     def __init__(self, name, items):
         self.name = name

@@ -18,6 +18,10 @@ INSTANCES = [
 
 def normalize_to_x_url(raw: str) -> str:
     parts = urlsplit(raw)
+    # A missing/host-only link has no path to map onto x.com; return "" rather
+    # than fabricating "https://x.com" (which would look like a real, openable item).
+    if not parts.path.strip("/"):
+        return ""
     return urlunsplit(("https", "x.com", parts.path, "", ""))
 
 
