@@ -79,6 +79,32 @@ def test_seen_tracker_caps_memory_with_oldest_eviction():
     assert [i.url for i in new] == ["https://a.com/1"]
 
 
+def test_merge_survives_poisoned_items_without_aborting_the_whole_poll():
+    # merge_items runs OUTSIDE safe_fetch: a single malformed scalar that slipped
+    # past a parser must not crash the merge and discard every source's results.
+    good = _item("https://good.com/1", 1, "web")
+    bad_url = NewsItem("hn", "t", 123, NOW)  # non-string url
+    bad_ipv6 = NewsItem("bing", "t", "http://[::1/bad", NOW)  # malformed IPv6
+    results = [
+        SourceResult("web", [good], Health.OK),
+        SourceResult("hn", [bad_url], Health.OK),
+        SourceResult("bing", [bad_ipv6], Health.OK),
+    ]
+    merged = merge_items(results, NOW - timedelta(hours=6))
+    # The good item plus both poisoned items survive (distinct fallback keys);
+    # crucially, nothing raised.
+    assert len(merged) == 3
+    assert good in merged
+
+
+def test_seen_tracker_survives_poisoned_items():
+    tracker = SeenTracker()
+    bad_url = NewsItem("hn", "t", 123, NOW)
+    bad_ipv6 = NewsItem("bing", "t2", "http://[::1/bad", NOW)
+    # mark_new also evaluates dedup_key outside safe_fetch; must not raise.
+    assert tracker.mark_new([bad_url, bad_ipv6]) == []  # baseline poll
+
+
 class _Src:
     def __init__(self, name, items):
         self.name = name

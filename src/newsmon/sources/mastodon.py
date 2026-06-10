@@ -9,13 +9,12 @@ from urllib.parse import urlsplit
 import feedparser
 
 from newsmon.models import NewsItem
-from newsmon.sources.base import fetch_text, published_from_feed
+from newsmon.sources.base import clean_text, fetch_text, published_from_feed
 
 NAME = "masto"
 INSTANCE = "https://mastodon.social"
 
 _TAGS = re.compile(r"<[^>]+>")
-_WS = re.compile(r"\s+")
 _TITLE_MAX = 200
 
 
@@ -26,11 +25,11 @@ def hashtag(topic: str) -> str:
 
 
 def _text(summary: str) -> str:
-    """Mastodon posts arrive as an HTML body and have no plain title."""
-    stripped = _WS.sub(" ", html.unescape(_TAGS.sub("", summary))).strip()
-    if len(stripped) > _TITLE_MAX:
-        stripped = stripped[: _TITLE_MAX - 1].rstrip() + "…"
-    return stripped
+    """Mastodon posts arrive as an HTML body and have no plain title. The body is
+    fully attacker-controlled (the hashtag feed aggregates federated instances),
+    so clean_text strips ANSI/control escapes and bidi overrides, collapses
+    whitespace, and truncates."""
+    return clean_text(html.unescape(_TAGS.sub("", summary)), max_len=_TITLE_MAX)
 
 
 def _author(link: str) -> str:

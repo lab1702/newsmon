@@ -15,12 +15,31 @@ ENDPOINT = "https://www.bing.com/news/search"
 USER_AGENT = "Mozilla/5.0 (compatible; newsmon/1.0)"
 
 
+def _is_http_url(url: str) -> bool:
+    try:
+        parts = urlsplit(url)
+    except ValueError:
+        # e.g. an unterminated IPv6 literal — urlsplit raises ValueError, which
+        # would otherwise surface later in dedup_key (outside safe_fetch).
+        return False
+    return parts.scheme in ("http", "https") and bool(parts.netloc)
+
+
 def _unwrap(link: str) -> str:
     """Bing wraps each article link in an apiclick redirect; the real article
     URL rides in the `url` query parameter. Fall back to the link itself.
-    `parse_qs` already percent-decodes the value, so don't unquote it again."""
-    target = parse_qs(urlsplit(link).query).get("url")
-    return target[0] if target else link
+    `parse_qs` already percent-decodes the value, so don't unquote it again.
+
+    The unwrapped value is attacker-influenced (it comes straight from the feed),
+    so reject anything that isn't a well-formed http(s) URL: a malformed IPv6
+    literal would crash dedup_key, and a mailto:/data: scheme would render as a
+    dead or misleading headline."""
+    try:
+        target = parse_qs(urlsplit(link).query).get("url")
+    except ValueError:
+        target = None
+    candidate = target[0] if target else link
+    return candidate if _is_http_url(candidate) else ""
 
 
 def parse_bing_news(text: str) -> list[NewsItem]:

@@ -9,7 +9,9 @@ from newsmon.models import NewsItem
 from newsmon.sources.base import (
     as_dict,
     as_list,
+    clean_text,
     fetch_text,
+    parse_iso8601_utc,
     published_from_feed,
     safe_fetch,
 )
@@ -112,3 +114,46 @@ def test_as_dict_passes_dicts_through_and_rejects_other_types():
     assert as_dict("oops") == {}
     assert as_dict([1, 2]) == {}
     assert as_dict(None) == {}
+
+
+def test_parse_iso8601_utc_normalizes_offsetless_value_to_utc():
+    # An ISO-8601 value with no offset parses to a NAIVE datetime; left naive it
+    # would crash the tz-aware comparison in merge_items (outside safe_fetch),
+    # taking down the whole poll. It must be treated as UTC.
+    got = parse_iso8601_utc("2026-06-09T11:00:00")
+    assert got.tzinfo is not None
+    assert got == datetime(2026, 6, 9, 11, 0, tzinfo=timezone.utc)
+
+
+def test_parse_iso8601_utc_keeps_trailing_z_as_utc():
+    got = parse_iso8601_utc("2026-06-09T11:00:00Z")
+    assert got == datetime(2026, 6, 9, 11, 0, tzinfo=timezone.utc)
+
+
+def test_parse_iso8601_utc_preserves_explicit_offset():
+    got = parse_iso8601_utc("2026-06-09T11:00:00+02:00")
+    assert got.astimezone(timezone.utc) == datetime(2026, 6, 9, 9, 0, tzinfo=timezone.utc)
+
+
+def test_clean_text_strips_ansi_and_control_escapes():
+    # Raw ESC/BEL bytes from hostile federated content must never reach the
+    # terminal; they are removed (replaced with a space) so words don't fuse.
+    assert "\x1b" not in clean_text("hi\x1b[31mRED\x1b[0m there")
+    assert "\x07" not in clean_text("ding\x07dong")
+    assert clean_text("a\x1b[2J\x1b[Hb")  # screen-clear sequence: no crash, no ESC
+
+
+def test_clean_text_strips_bidi_override_chars():
+    # U+202E (RTL override) visually reverses/spoofs a headline.
+    assert "‮" not in clean_text("safe‮txet det_kcatta")
+    assert "⁦" not in clean_text("a⁦b⁩c")
+
+
+def test_clean_text_collapses_whitespace():
+    assert clean_text("a   b\n\nc\td") == "a b c d"
+
+
+def test_clean_text_truncates_to_max_len_with_ellipsis():
+    out = clean_text("x" * 100, max_len=10)
+    assert len(out) == 10
+    assert out.endswith("…")

@@ -22,17 +22,21 @@ def parse_gdelt(text: str) -> list[NewsItem]:
     for art in as_list(data.get("articles")):
         art = as_dict(art)
         seendate = art.get("seendate")
-        if not seendate:
+        if not isinstance(seendate, str) or not seendate:
+            # A non-string seendate (JSON number) reaches strptime and raises
+            # TypeError, not the caught ValueError; skip it, keep the batch.
             continue
         try:
             published = _published(seendate)
         except ValueError:
             continue
+        raw_title = art.get("title")
+        raw_url = art.get("url")
         items.append(
             NewsItem(
                 source=NAME,
-                title=art.get("title") or "(untitled)",
-                url=art.get("url", ""),
+                title=raw_title if isinstance(raw_title, str) and raw_title else "(untitled)",
+                url=raw_url if isinstance(raw_url, str) else "",
                 published=published,
                 summary="",
                 extra={

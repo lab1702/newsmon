@@ -14,3 +14,16 @@ def test_parse_google_news(fixtures_dir):
     assert first.published.tzinfo is not None
     assert first.published.astimezone(timezone.utc).hour == 11
     assert first.extra.get("outlet") == "Example News"
+
+
+def test_parse_google_news_empty_title_uses_placeholder():
+    # feedparser populates entry["title"] = "" for an empty <title></title>, so
+    # the .get default never fires and the row renders blank.
+    xml = (
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        '<rss version="2.0"><channel>'
+        "<item><title></title><link>https://news.google.com/x</link></item>"
+        "</channel></rss>"
+    )
+    items = parse_google_news(xml)
+    assert items[0].title == "(untitled)"

@@ -26,6 +26,10 @@ _UNIT_DAYS = {
 
 
 def parse_relative_time(text: str, now: datetime) -> datetime | None:
+    if not isinstance(text, str):
+        # publishedTimeText.simpleText may arrive as a non-string on schema
+        # drift; the regex search would raise TypeError. Treat as unparseable.
+        return None
     match = _REL_RE.search(text or "")
     if not match:
         return None
@@ -52,8 +56,12 @@ def _walk_video_renderers(node):
         if isinstance(current, dict):
             if "videoRenderer" in current:
                 # A videoRenderer holds scalar fields, not nested videoRenderers,
-                # so stop here rather than descending into its own subtree.
-                yield current["videoRenderer"]
+                # so stop here rather than descending into its own subtree. A
+                # non-dict value (schema drift) is dropped, not yielded — callers
+                # do vr.get(...) and would otherwise crash on the whole walk.
+                vr = current["videoRenderer"]
+                if isinstance(vr, dict):
+                    yield vr
                 continue
             stack.extend(reversed(list(current.values())))
         elif isinstance(current, list):
@@ -63,8 +71,14 @@ def _walk_video_renderers(node):
 def _text(node: dict, key: str) -> str:
     # YouTube text fields are run-arrays; the full string is every run joined,
     # so reading only runs[0] would truncate multi-run titles/channel names.
-    runs = (node.get(key) or {}).get("runs") or []
-    return "".join(run.get("text", "") for run in runs)
+    # Every level is type-checked: a non-dict field, non-list runs, a bare-string
+    # run, or a numeric run text are all coerced rather than crashing the parse.
+    field = node.get(key)
+    runs = field.get("runs") if isinstance(field, dict) else None
+    runs = runs if isinstance(runs, list) else []
+    return "".join(
+        str(run.get("text", "")) for run in runs if isinstance(run, dict)
+    )
 
 
 def _extract_initial_data(html: str) -> str | None:
@@ -110,7 +124,8 @@ def parse_youtube(html: str, now: datetime) -> list[NewsItem]:
         video_id = vr.get("videoId")
         if not video_id:
             continue
-        rel = (vr.get("publishedTimeText") or {}).get("simpleText", "")
+        ptt = vr.get("publishedTimeText")
+        rel = ptt.get("simpleText", "") if isinstance(ptt, dict) else ""
         published = parse_relative_time(rel, now)
         if published is None:
             continue
