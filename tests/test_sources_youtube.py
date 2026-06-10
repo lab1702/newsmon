@@ -21,6 +21,29 @@ def test_parse_relative_time_unparseable():
     assert parse_relative_time("", NOW) is None
 
 
+def test_parse_relative_time_huge_quantity_is_unparseable():
+    # An absurd digit run overflows timedelta; treat as unparseable, don't raise.
+    assert parse_relative_time("9" * 400 + " years ago", NOW) is None
+
+
+def test_parse_youtube_joins_multi_run_title():
+    html = (
+        'ytInitialData = {"videoRenderer": {"videoId": "v1",'
+        ' "publishedTimeText": {"simpleText": "1 hour ago"},'
+        ' "title": {"runs": [{"text": "Break"}, {"text": "ing news"}]}}};</script>'
+    )
+    items = parse_youtube(html, NOW)
+    assert items[0].title == "Breaking news"
+
+
+def test_parse_youtube_handles_deeply_nested_data():
+    # A pathologically nested payload must not blow the recursion limit; the
+    # walker is iterative, so this returns cleanly (no videoRenderers → []).
+    depth = 5000
+    html = "ytInitialData = " + "[" * depth + "]" * depth + ";</script>"
+    assert parse_youtube(html, NOW) == []
+
+
 def test_parse_youtube(fixtures_dir):
     html = (fixtures_dir / "youtube.html").read_text()
     items = parse_youtube(html, NOW)

@@ -51,7 +51,11 @@ class SeenTracker:
                 self._seen.popitem(last=False)
             if self._baseline_set:
                 new.append(item)
-        self._baseline_set = True
+        # Don't let an empty first poll (e.g. started offline) establish the
+        # baseline against nothing — that would flag every item of the next
+        # successful poll as "new" and ring the bell.
+        if items:
+            self._baseline_set = True
         return new
 
 

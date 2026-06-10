@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import re
 from datetime import datetime, timedelta, timezone
@@ -29,29 +30,40 @@ def parse_relative_time(text: str, now: datetime) -> datetime | None:
         return None
     qty = int(match.group(1))
     unit = match.group(2)
-    if unit in ("second", "minute", "hour"):
-        seconds = qty * _UNIT_DAYS[unit] * 86400
-        return now - timedelta(seconds=round(seconds))
-    return now - timedelta(days=qty * _UNIT_DAYS[unit])
+    try:
+        if unit in ("second", "minute", "hour"):
+            seconds = qty * _UNIT_DAYS[unit] * 86400
+            return now - timedelta(seconds=round(seconds))
+        return now - timedelta(days=qty * _UNIT_DAYS[unit])
+    except OverflowError:
+        # An absurd digit run ("9999…99 years ago") overflows timedelta; treat it
+        # as unparseable rather than letting it abort the whole feed.
+        return None
 
 
 def _walk_video_renderers(node):
-    if isinstance(node, dict):
-        if "videoRenderer" in node:
-            # A videoRenderer holds scalar fields, not nested videoRenderers, so
-            # stop here rather than descending into its own subtree.
-            yield node["videoRenderer"]
-            return
-        for value in node.values():
-            yield from _walk_video_renderers(value)
-    elif isinstance(node, list):
-        for value in node:
-            yield from _walk_video_renderers(value)
+    """Yield every videoRenderer dict. Iterative (explicit stack) so a deeply
+    nested ytInitialData payload can't exhaust the recursion limit. Children are
+    pushed in reverse so popping preserves document order."""
+    stack = [node]
+    while stack:
+        current = stack.pop()
+        if isinstance(current, dict):
+            if "videoRenderer" in current:
+                # A videoRenderer holds scalar fields, not nested videoRenderers,
+                # so stop here rather than descending into its own subtree.
+                yield current["videoRenderer"]
+                continue
+            stack.extend(reversed(list(current.values())))
+        elif isinstance(current, list):
+            stack.extend(reversed(current))
 
 
 def _text(node: dict, key: str) -> str:
+    # YouTube text fields are run-arrays; the full string is every run joined,
+    # so reading only runs[0] would truncate multi-run titles/channel names.
     runs = (node.get(key) or {}).get("runs") or []
-    return runs[0].get("text", "") if runs else ""
+    return "".join(run.get("text", "") for run in runs)
 
 
 def _extract_initial_data(html: str) -> str | None:
@@ -125,4 +137,8 @@ class YouTubeSource:
             params=params,
             headers={"Accept-Language": "en-US,en;q=0.9"},
         )
-        return parse_youtube(text, datetime.now(timezone.utc))
+        # Parse off the event loop: a large/pathological body would otherwise
+        # block the single-threaded UI past the safe_fetch timeout.
+        return await asyncio.to_thread(
+            parse_youtube, text, datetime.now(timezone.utc)
+        )

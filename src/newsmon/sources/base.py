@@ -18,7 +18,12 @@ def published_from_feed(entry) -> datetime:
     parsed = getattr(entry, "published_parsed", None)
     if parsed is None:
         return utcnow()
-    return datetime(*parsed[:6], tzinfo=timezone.utc)
+    try:
+        return datetime(*parsed[:6], tzinfo=timezone.utc)
+    except (ValueError, TypeError):
+        # An out-of-range struct_time (e.g. month=13) would otherwise abort the
+        # whole feed; fall back to now() like the missing-timestamp case.
+        return utcnow()
 
 
 def parse_iso8601_utc(value: str) -> datetime:

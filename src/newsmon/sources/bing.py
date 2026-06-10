@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from datetime import datetime
 from urllib.parse import parse_qs, urlsplit
 
@@ -29,7 +30,7 @@ def parse_bing_news(text: str) -> list[NewsItem]:
         items.append(
             NewsItem(
                 source=NAME,
-                title=entry.get("title", "(untitled)"),
+                title=entry.get("title") or "(untitled)",
                 url=_unwrap(entry.get("link", "")),
                 published=published_from_feed(entry),
                 summary=entry.get("summary", ""),
@@ -47,4 +48,4 @@ class BingNewsSource:
         text = await fetch_text(
             client, ENDPOINT, params=params, headers={"User-Agent": USER_AGENT}
         )
-        return parse_bing_news(text)
+        return await asyncio.to_thread(parse_bing_news, text)

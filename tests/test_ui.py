@@ -12,11 +12,20 @@ NOW = datetime(2026, 6, 9, 12, 0, tzinfo=timezone.utc)
 def test_format_row_uses_source_name():
     item = NewsItem("web", "Quake hits coast", "https://a/1",
                     datetime(2026, 6, 9, 11, 30, tzinfo=timezone.utc))
-    source, when, title = format_row(item, tz=timezone.utc)
+    source, when, title = format_row(item, tz=timezone.utc, now=NOW)
     # the stream's leading column shows the source name, matching the sidebar
     assert source == "web"
-    assert when == "11:30"
+    assert when == "11:30"  # same day as `now` → time only
     assert title == "Quake hits coast"
+
+
+def test_format_row_prefixes_date_for_other_days():
+    # With a multi-day window, an item from a different day must carry its date
+    # so same-time items on different days don't render identically.
+    item = NewsItem("web", "Older quake", "https://a/2",
+                    datetime(2026, 6, 7, 11, 30, tzinfo=timezone.utc))
+    _, when, _ = format_row(item, tz=timezone.utc, now=NOW)
+    assert when == "06-07 11:30"
 
 
 def test_render_sidebar_shows_health_and_counts():
@@ -67,7 +76,24 @@ def test_render_sidebar_dims_disabled_source():
         ("", False),
         ("https://", False),
         ("ftp://example.com/x", False),
+        # urlsplit strips these silently, so they must be rejected before the
+        # raw string reaches webbrowser.open / the clipboard (paste-injection).
+        ("http://example.com/\nrm -rf ~", False),
+        ("http://example.com/\twhoami", False),
+        ("http://example.com/\rfoo", False),
     ],
 )
 def test_is_browsable_url(url, ok):
     assert is_browsable_url(url) is ok
+
+
+def test_render_sidebar_omits_toggle_number_past_ninth():
+    # Only the first 9 sources get a digit toggle key; a 10th is shown without
+    # an (unpressable) number.
+    results = [SourceResult(f"s{i}", [], Health.OK) for i in range(1, 11)]
+    text = render_sidebar(results, new_count=0)
+    lines = text.splitlines()
+    assert lines[2].startswith("1 ")   # first source numbered
+    assert lines[10].startswith("9 ")  # ninth source numbered
+    assert lines[11].startswith("  ")  # tenth source: blank toggle slot, no "10"
+    assert "s10" in lines[11]

@@ -42,6 +42,29 @@ async def test_selected_item_is_none_on_empty_stream():
     opened.assert_not_called()
 
 
+async def test_new_count_excludes_disabled_sources():
+    """New items from a toggled-off source must not inflate the 'N new' badge."""
+    now = datetime.now(timezone.utc)
+    seed = SourceResult("web", [NewsItem("web", "seed", "https://e/seed", now)], Health.OK)
+    poll = AsyncMock(side_effect=[
+        # first poll: baseline (the seed item is marked seen, 0 new)
+        [seed, SourceResult("hn", [], Health.OK)],
+        # second poll: one fresh item per source
+        [
+            SourceResult("web", [NewsItem("web", "w", "https://e/w", now)], Health.OK),
+            SourceResult("hn", [NewsItem("hn", "h", "https://e/h", now)], Health.OK),
+        ],
+    ])
+    with patch("newsmon.app.poll_sources", new=poll):
+        app = NewsmonApp(Config(topic="t", interval=3600))
+        async with app.run_test(size=(120, 30)) as pilot:
+            await pilot.pause()  # on_mount → baseline poll
+            assert app.new_count == 0
+            app.enabled = {"web"}  # toggle hn off
+            await app.action_refresh()  # second poll: web + hn both new
+            assert app.new_count == 1  # only the visible (web) item counted
+
+
 async def test_enter_opens_selected_item_in_browser():
     """Pressing Enter on the focused stream table opens the row's URL.
 

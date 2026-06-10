@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 from datetime import datetime, timezone
 
@@ -54,4 +55,4 @@ class GdeltSource:
             "maxrecords": 75,
         }
         text = await fetch_text(client, ENDPOINT, params=params)
-        return parse_gdelt(text)
+        return await asyncio.to_thread(parse_gdelt, text)

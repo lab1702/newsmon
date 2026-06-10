@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from datetime import datetime
 from urllib.parse import urlsplit, urlunsplit
 
@@ -57,7 +58,7 @@ class TwitterSource:
                 continue
             # First instance that responds is authoritative — an empty result
             # means "no tweets", not "instance down", so don't fall through.
-            return parse_nitter(text)
+            return await asyncio.to_thread(parse_nitter, text)
         if last_error:
             raise last_error
         return []

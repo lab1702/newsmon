@@ -6,7 +6,7 @@ from conftest import FakeStreamClient
 
 from newsmon.health import Health
 from newsmon.models import NewsItem
-from newsmon.sources.base import fetch_text, safe_fetch
+from newsmon.sources.base import fetch_text, published_from_feed, safe_fetch
 
 NOW = datetime(2026, 6, 9, 12, 0, tzinfo=timezone.utc)
 
@@ -71,3 +71,21 @@ async def test_fetch_text_raises_for_status():
     client = FakeStreamClient("nope", status=503)
     with pytest.raises(RuntimeError):
         await fetch_text(client, "https://x/feed")
+
+
+class _Entry:
+    def __init__(self, published_parsed):
+        self.published_parsed = published_parsed
+
+
+def test_published_from_feed_out_of_range_falls_back_to_now():
+    # An out-of-range struct_time (month=13) must not abort the whole feed.
+    before = datetime.now(timezone.utc)
+    got = published_from_feed(_Entry((2026, 13, 1, 0, 0, 0, 0, 0, 0)))
+    assert got >= before
+    assert got.tzinfo is not None
+
+
+def test_published_from_feed_uses_valid_timestamp():
+    got = published_from_feed(_Entry((2026, 6, 9, 11, 30, 0, 0, 0, 0)))
+    assert got == datetime(2026, 6, 9, 11, 30, tzinfo=timezone.utc)

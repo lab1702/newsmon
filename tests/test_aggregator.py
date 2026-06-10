@@ -59,6 +59,15 @@ def test_seen_tracker_reports_only_unseen_after_baseline():
     assert [i.url for i in new] == ["https://a.com/2"]
 
 
+def test_seen_tracker_empty_first_poll_does_not_set_baseline():
+    # An empty first poll (e.g. started offline) must not baseline against nothing,
+    # else the next successful poll would flag every item as new.
+    tracker = SeenTracker()
+    assert tracker.mark_new([]) == []
+    new = tracker.mark_new([_item("https://a.com/1", 1), _item("https://a.com/2", 2)])
+    assert new == []  # this is the real baseline
+
+
 def test_seen_tracker_caps_memory_with_oldest_eviction():
     tracker = SeenTracker(max_keys=2)
     tracker.mark_new([_item("https://a.com/1", 1)])  # baseline; seen={1}

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from datetime import datetime
 
 import feedparser
@@ -44,4 +45,4 @@ class GoogleNewsSource:
     async def fetch(self, client, topic: str, since: datetime) -> list[NewsItem]:
         params = {"q": topic, "hl": "en-US", "gl": "US", "ceid": "US:en"}
         text = await fetch_text(client, ENDPOINT, params=params)
-        return parse_google_news(text)
+        return await asyncio.to_thread(parse_google_news, text)
