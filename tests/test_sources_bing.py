@@ -1,24 +1,8 @@
 from datetime import datetime, timezone
 
+from conftest import FakeStreamClient
+
 from newsmon.sources.bing import BingNewsSource, parse_bing_news
-
-
-class _FakeResp:
-    def __init__(self, text):
-        self.text = text
-
-    def raise_for_status(self):
-        pass
-
-
-class _FakeClient:
-    def __init__(self, text):
-        self.text = text
-        self.calls = []
-
-    async def get(self, url, params=None, headers=None):
-        self.calls.append((url, params, headers))
-        return _FakeResp(self.text)
 
 
 def test_parse_bing_news(fixtures_dir):
@@ -37,10 +21,10 @@ def test_parse_bing_news(fixtures_dir):
 
 async def test_fetch_requests_rss(fixtures_dir):
     text = (fixtures_dir / "bing_news.xml").read_text()
-    client = _FakeClient(text)
+    client = FakeStreamClient(text)
     since = datetime(2026, 6, 9, 6, 0, tzinfo=timezone.utc)
     items = await BingNewsSource().fetch(client, "quake", since)
     assert len(items) == 2
-    url, params, _ = client.calls[0]
-    assert params["q"] == "quake"
-    assert params["format"] == "rss"
+    _, _, kwargs = client.calls[0]
+    assert kwargs["params"]["q"] == "quake"
+    assert kwargs["params"]["format"] == "rss"

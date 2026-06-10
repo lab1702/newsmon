@@ -6,7 +6,7 @@ from urllib.parse import parse_qs, unquote, urlsplit
 import feedparser
 
 from newsmon.models import NewsItem
-from newsmon.sources.base import published_from_feed
+from newsmon.sources.base import fetch_text, published_from_feed
 
 NAME = "bing"
 ENDPOINT = "https://www.bing.com/news/search"
@@ -43,8 +43,7 @@ class BingNewsSource:
 
     async def fetch(self, client, topic: str, since: datetime) -> list[NewsItem]:
         params = {"q": topic, "format": "rss"}
-        resp = await client.get(
-            ENDPOINT, params=params, headers={"User-Agent": USER_AGENT}
+        text = await fetch_text(
+            client, ENDPOINT, params=params, headers={"User-Agent": USER_AGENT}
         )
-        resp.raise_for_status()
-        return parse_bing_news(resp.text)
+        return parse_bing_news(text)

@@ -14,7 +14,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8.0", "pytest-asyncio>=0.23"]
+dev = ["pytest>=8.0", "pytest-asyncio>=0.23", "ruff>=0.6"]
 
 [project.scripts]
 newsmon = "newsmon.cli:main"
@@ -29,3 +29,8 @@ where = ["src"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+
+[tool.ruff.lint]
+# BLE makes the `# noqa: BLE001` pragmas on the deliberate blanket excepts live.
+select = ["E", "F", "BLE"]
+ignore = ["E501"]  # long, readable test-data lines

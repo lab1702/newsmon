@@ -5,6 +5,7 @@ import re
 from datetime import datetime, timedelta, timezone
 
 from newsmon.models import NewsItem
+from newsmon.sources.base import fetch_text
 
 NAME = "youtube"
 # sp="CAI=" → encoded to sp=CAI%3D on the wire, which sorts results by upload date
@@ -37,6 +38,8 @@ def parse_relative_time(text: str, now: datetime) -> datetime | None:
 def _walk_video_renderers(node):
     if isinstance(node, dict):
         if "videoRenderer" in node:
+            # A videoRenderer holds scalar fields, not nested videoRenderers, so
+            # stop here rather than descending into its own subtree.
             yield node["videoRenderer"]
             return
         for value in node.values():
@@ -47,7 +50,7 @@ def _walk_video_renderers(node):
 
 
 def _text(node: dict, key: str) -> str:
-    runs = node.get(key, {}).get("runs", [])
+    runs = (node.get(key) or {}).get("runs") or []
     return runs[0]["text"] if runs else ""
 
 
@@ -61,7 +64,7 @@ def parse_youtube(html: str, now: datetime) -> list[NewsItem]:
         video_id = vr.get("videoId")
         if not video_id:
             continue
-        rel = vr.get("publishedTimeText", {}).get("simpleText", "")
+        rel = (vr.get("publishedTimeText") or {}).get("simpleText", "")
         published = parse_relative_time(rel, now)
         if published is None:
             continue
@@ -83,10 +86,10 @@ class YouTubeSource:
 
     async def fetch(self, client, topic: str, since: datetime) -> list[NewsItem]:
         params = {"search_query": topic, "sp": "CAI="}
-        resp = await client.get(
+        text = await fetch_text(
+            client,
             ENDPOINT,
             params=params,
             headers={"Accept-Language": "en-US,en;q=0.9"},
         )
-        resp.raise_for_status()
-        return parse_youtube(resp.text, datetime.now(timezone.utc))
+        return parse_youtube(text, datetime.now(timezone.utc))

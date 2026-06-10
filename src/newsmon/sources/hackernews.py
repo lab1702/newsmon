@@ -4,7 +4,7 @@ import json
 from datetime import datetime
 
 from newsmon.models import NewsItem
-from newsmon.sources.base import parse_iso8601_utc
+from newsmon.sources.base import fetch_text, parse_iso8601_utc
 
 NAME = "hn"
 ENDPOINT = "https://hn.algolia.com/api/v1/search_by_date"
@@ -13,7 +13,7 @@ ENDPOINT = "https://hn.algolia.com/api/v1/search_by_date"
 def parse_hackernews(text: str) -> list[NewsItem]:
     data = json.loads(text)
     items: list[NewsItem] = []
-    for hit in data.get("hits", []):
+    for hit in data.get("hits") or []:
         created = hit.get("created_at")
         if not created:
             continue
@@ -51,6 +51,5 @@ class HackerNewsSource:
             "hitsPerPage": 50,
             "numericFilters": f"created_at_i>{int(since.timestamp())}",
         }
-        resp = await client.get(ENDPOINT, params=params)
-        resp.raise_for_status()
-        return parse_hackernews(resp.text)
+        text = await fetch_text(client, ENDPOINT, params=params)
+        return parse_hackernews(text)

@@ -12,6 +12,7 @@ from textual.widgets import DataTable, Footer, Header, Static
 
 from newsmon.aggregator import SeenTracker, merge_items, poll_sources
 from newsmon.cli import Config
+from newsmon.health import SourceResult
 from newsmon.models import NewsItem
 from newsmon.sources import build_sources
 from newsmon.ui import format_row, is_browsable_url, render_sidebar
@@ -46,8 +47,9 @@ class NewsmonApp(App):
         self.enabled: set[str] = {s.name for s in self.sources}
         self.items: list[NewsItem] = []
         self._all_items: list[NewsItem] = []
-        self._latest_results: list = []
+        self._latest_results: list[SourceResult] = []
         self._client: httpx.AsyncClient | None = None
+        self._refreshing = False
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
@@ -71,21 +73,29 @@ class NewsmonApp(App):
             await self._client.aclose()
 
     async def action_refresh(self) -> None:
-        now = datetime.now(timezone.utc)
-        since = now - timedelta(hours=self.config.hours)
-        results = await poll_sources(
-            self.sources, self._client, self.config.topic, since,
-            timeout=REQUEST_TIMEOUT, slow_after=SLOW_AFTER,
-        )
-        merged = merge_items(results, since)
-        new = self.tracker.mark_new(merged)
-        self.new_count += len(new)
-        self._new_keys = {item.dedup_key for item in new}
-        self._all_items = merged
-        self._latest_results = results
-        self._refresh_view()
-        if new and self.config.bell:
-            self.bell()
+        # Skip if a poll is still in flight (a slow source plus a tight
+        # --interval could otherwise stack overlapping refreshes).
+        if self._refreshing:
+            return
+        self._refreshing = True
+        try:
+            now = datetime.now(timezone.utc)
+            since = now - timedelta(hours=self.config.hours)
+            results = await poll_sources(
+                self.sources, self._client, self.config.topic, since,
+                timeout=REQUEST_TIMEOUT, slow_after=SLOW_AFTER,
+            )
+            merged = merge_items(results, since)
+            new = self.tracker.mark_new(merged)
+            self.new_count += len(new)
+            self._new_keys = {item.dedup_key for item in new}
+            self._all_items = merged
+            self._latest_results = results
+            self._refresh_view()
+            if new and self.config.bell:
+                self.bell()
+        finally:
+            self._refreshing = False
 
     def _refresh_view(self) -> None:
         """Apply the source filter to the last poll and re-render (no network)."""
@@ -102,7 +112,7 @@ class NewsmonApp(App):
             self.enabled.add(name)
         self._refresh_view()
 
-    def _render(self, results) -> None:
+    def _render(self, results: list[SourceResult]) -> None:
         table = self.query_one("#stream", DataTable)
         table.clear()
         tz = datetime.now().astimezone().tzinfo
@@ -120,7 +130,7 @@ class NewsmonApp(App):
     def _selected_item(self):
         table = self.query_one("#stream", DataTable)
         row = table.cursor_row
-        if row >= len(self.items):
+        if row is None or not 0 <= row < len(self.items):
             return None
         return self.items[row]
 

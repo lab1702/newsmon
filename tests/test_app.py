@@ -15,6 +15,33 @@ def _one_result():
     return [SourceResult("web", [item], Health.OK)]
 
 
+async def test_refresh_skips_when_already_in_flight():
+    """A second refresh while one is in flight is a no-op, not a stacked poll."""
+    poll = AsyncMock(return_value=_one_result())
+    with patch("newsmon.app.poll_sources", new=poll):
+        app = NewsmonApp(Config(topic="t", interval=3600))
+        async with app.run_test(size=(120, 30)) as pilot:
+            await pilot.pause()
+            assert poll.call_count == 1  # the on_mount refresh
+            app._refreshing = True
+            await app.action_refresh()
+            assert poll.call_count == 1  # guarded — no extra poll
+
+
+async def test_selected_item_is_none_on_empty_stream():
+    poll = AsyncMock(return_value=[SourceResult("web", [], Health.OK)])
+    opened = MagicMock()
+    with patch("newsmon.app.poll_sources", new=poll), \
+         patch("newsmon.app.webbrowser.open", new=opened):
+        app = NewsmonApp(Config(topic="t", interval=3600))
+        async with app.run_test(size=(120, 30)) as pilot:
+            await pilot.pause()
+            assert app._selected_item() is None
+            await pilot.press("enter")
+            await pilot.pause()
+    opened.assert_not_called()
+
+
 async def test_enter_opens_selected_item_in_browser():
     """Pressing Enter on the focused stream table opens the row's URL.
 

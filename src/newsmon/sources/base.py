@@ -26,6 +26,33 @@ def parse_iso8601_utc(value: str) -> datetime:
     return datetime.fromisoformat(value.replace("Z", "+00:00"))
 
 
+MAX_RESPONSE_BYTES = 8 * 1024 * 1024  # 8 MiB ceiling per response
+
+
+async def fetch_text(
+    client,
+    url: str,
+    *,
+    method: str = "GET",
+    max_bytes: int = MAX_RESPONSE_BYTES,
+    **kwargs,
+) -> str:
+    """Stream a request to text, aborting if the body exceeds ``max_bytes`` so a
+    pathological response can't exhaust memory before we parse it. Centralizes
+    ``raise_for_status`` for every source."""
+    async with client.stream(method, url, **kwargs) as resp:
+        resp.raise_for_status()
+        chunks: list[bytes] = []
+        total = 0
+        async for chunk in resp.aiter_bytes():
+            total += len(chunk)
+            if total > max_bytes:
+                raise ValueError(f"response from {url} exceeded {max_bytes} bytes")
+            chunks.append(chunk)
+        encoding = resp.encoding or "utf-8"
+    return b"".join(chunks).decode(encoding, errors="replace")
+
+
 class Source(Protocol):
     name: str
 

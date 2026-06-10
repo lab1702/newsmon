@@ -4,7 +4,7 @@ import json
 from datetime import datetime
 
 from newsmon.models import NewsItem
-from newsmon.sources.base import parse_iso8601_utc
+from newsmon.sources.base import fetch_text, parse_iso8601_utc
 
 NAME = "twitch"
 ENDPOINT = "https://gql.twitch.tv/gql"
@@ -32,11 +32,8 @@ query($q: String!) {
 def parse_twitch(text: str) -> list[NewsItem]:
     data = json.loads(text)
     edges = (
-        data.get("data", {})
-        .get("searchFor", {})
-        .get("channels", {})
-        .get("edges", [])
-    )
+        ((data.get("data") or {}).get("searchFor") or {}).get("channels") or {}
+    ).get("edges") or []
     items: list[NewsItem] = []
     for edge in edges:
         item = edge.get("item") or {}
@@ -72,8 +69,8 @@ class TwitchSource:
 
     async def fetch(self, client, topic: str, since: datetime) -> list[NewsItem]:
         payload = {"query": _GQL, "variables": {"q": topic}}
-        resp = await client.post(
-            ENDPOINT, json=payload, headers={"Client-Id": CLIENT_ID}
+        text = await fetch_text(
+            client, ENDPOINT, method="POST", json=payload,
+            headers={"Client-Id": CLIENT_ID},
         )
-        resp.raise_for_status()
-        return parse_twitch(resp.text)
+        return parse_twitch(text)

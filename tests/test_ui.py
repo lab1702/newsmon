@@ -1,10 +1,10 @@
-import pytest
-
 from datetime import datetime, timezone
+
+import pytest
 
 from newsmon.health import Health, SourceResult
 from newsmon.models import NewsItem
-from newsmon.ui import format_row, render_sidebar
+from newsmon.ui import format_row, is_browsable_url, render_sidebar
 
 NOW = datetime(2026, 6, 9, 12, 0, tzinfo=timezone.utc)
 
@@ -55,11 +55,6 @@ def test_render_sidebar_dims_disabled_source():
     # enabled source is rendered plainly; disabled one is dimmed and marked off
     assert "[dim]" not in web_line
     assert "[dim]" in x_line and "off" in x_line
-
-
-import pytest
-
-from newsmon.ui import is_browsable_url
 
 
 @pytest.mark.parametrize(

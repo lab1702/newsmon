@@ -11,3 +11,8 @@ def test_parse_twitch_only_live(fixtures_dir):
     assert item.title == "Live quake coverage"
     assert item.extra["viewers"] == 5400
     assert item.published.hour == 11
+
+
+def test_parse_twitch_null_search_returns_no_items():
+    # A present-but-null "searchFor" key must not crash the parser
+    assert parse_twitch('{"data": {"searchFor": null}}') == []
