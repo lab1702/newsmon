@@ -43,6 +43,23 @@ def test_parse_nitter_truncates_overlong_title():
     assert len(items[0].title) <= 500
 
 
+def test_parse_nitter_survives_malformed_link():
+    # A hostile Nitter instance can serve one <item> with a malformed authority
+    # (unterminated IPv6 literal); normalize_to_x_url/urlsplit must not raise and
+    # discard every other tweet in the feed.
+    feed = (
+        '<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"><channel>'
+        "<item><title>good</title>"
+        "<link>https://nitter.net/u/status/1</link></item>"
+        "<item><title>bad</title><link>https://[::1/u/status/2</link></item>"
+        "</channel></rss>"
+    )
+    items = parse_nitter(feed)
+    assert len(items) == 2
+    assert items[0].url == "https://x.com/u/status/1"
+    assert items[1].url == ""  # malformed link degrades to no URL
+
+
 async def test_fetch_disables_redirects_for_untrusted_instances(fixtures_dir):
     # Nitter instances are untrusted third parties; following their redirects
     # turns the shared client into a blind-SSRF vector (e.g. a 302 to

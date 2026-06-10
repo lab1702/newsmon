@@ -35,6 +35,24 @@ def test_text_strips_bidi_override_from_post_body():
     assert "‮" not in out
 
 
+def test_parse_mastodon_survives_malformed_link():
+    # The hashtag feed aggregates untrusted federated instances. One post with a
+    # malformed authority (unterminated IPv6 literal) must not raise out of
+    # _author/urlsplit and discard every legitimate post in the feed.
+    feed = (
+        '<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"><channel>'
+        "<item><title>t</title><link>https://masto.ai/@alice/1</link>"
+        "<description>good</description></item>"
+        "<item><title>t</title><link>http://[oops</link>"
+        "<description>bad</description></item>"
+        "</channel></rss>"
+    )
+    items = parse_mastodon(feed)
+    assert len(items) == 2
+    assert items[0].extra["author"] == "@alice@masto.ai"
+    assert items[1].extra["author"] == ""  # malformed link degrades to no author
+
+
 async def test_fetch_builds_hashtag_from_topic(fixtures_dir):
     text = (fixtures_dir / "mastodon.xml").read_text()
     client = FakeStreamClient(text)

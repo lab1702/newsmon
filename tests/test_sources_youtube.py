@@ -42,6 +42,14 @@ def test_parse_relative_time_huge_quantity_is_unparseable():
     assert parse_relative_time("9" * 400 + " years ago", NOW) is None
 
 
+def test_parse_relative_time_overlong_digit_run_is_unparseable():
+    # A digit run beyond CPython's int-str conversion limit (4300) makes int()
+    # raise ValueError — earlier than, and outside, the OverflowError guard —
+    # which would abort parse_youtube and drop the entire feed. Treat as
+    # unparseable instead.
+    assert parse_relative_time("9" * 5000 + " years ago", NOW) is None
+
+
 def test_parse_youtube_joins_multi_run_title():
     html = (
         'ytInitialData = {"videoRenderer": {"videoId": "v1",'

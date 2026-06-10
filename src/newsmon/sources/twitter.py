@@ -20,7 +20,12 @@ INSTANCES = [
 
 
 def normalize_to_x_url(raw: str) -> str:
-    parts = urlsplit(raw)
+    try:
+        parts = urlsplit(raw)
+    except ValueError:
+        # A malformed authority (e.g. unterminated IPv6 literal) from a hostile
+        # Nitter instance must degrade to no URL, not abort the whole feed.
+        return ""
     # A missing/host-only link has no path to map onto x.com; return "" rather
     # than fabricating "https://x.com" (which would look like a real, openable item).
     if not parts.path.strip("/"):

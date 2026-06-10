@@ -33,16 +33,18 @@ def parse_relative_time(text: str, now: datetime) -> datetime | None:
     match = _REL_RE.search(text or "")
     if not match:
         return None
-    qty = int(match.group(1))
     unit = match.group(2)
     try:
+        # int() raises ValueError on a digit run beyond CPython's int-str limit
+        # (4300); the timedelta arithmetic raises OverflowError on a merely huge
+        # value. Both come from attacker-controlled text and must be treated as
+        # unparseable rather than aborting the whole feed.
+        qty = int(match.group(1))
         if unit in ("second", "minute", "hour"):
             seconds = qty * _UNIT_DAYS[unit] * 86400
             return now - timedelta(seconds=round(seconds))
         return now - timedelta(days=qty * _UNIT_DAYS[unit])
-    except OverflowError:
-        # An absurd digit run ("9999…99 years ago") overflows timedelta; treat it
-        # as unparseable rather than letting it abort the whole feed.
+    except (ValueError, OverflowError):
         return None
 
 
