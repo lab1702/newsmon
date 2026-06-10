@@ -55,7 +55,13 @@ class TwitterSource:
         for base in INSTANCES:
             try:
                 text = await fetch_text(
-                    client, f"{base}/search/rss", params={"f": "tweets", "q": topic}
+                    client,
+                    f"{base}/search/rss",
+                    params={"f": "tweets", "q": topic},
+                    # Nitter instances are untrusted third parties; don't follow
+                    # their redirects — that would let a hostile instance 302 the
+                    # shared client to an internal/link-local host (blind SSRF).
+                    follow_redirects=False,
                 )
             except Exception as exc:  # noqa: BLE001 - try next instance
                 last_error = exc

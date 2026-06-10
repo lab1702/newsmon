@@ -1,6 +1,13 @@
-import pytest
+from datetime import datetime, timezone
 
-from newsmon.sources.twitter import normalize_to_x_url, parse_nitter
+import pytest
+from conftest import FakeStreamClient
+
+from newsmon.sources.twitter import (
+    TwitterSource,
+    normalize_to_x_url,
+    parse_nitter,
+)
 
 
 def test_parse_nitter(fixtures_dir):
@@ -34,6 +41,18 @@ def test_parse_nitter_strips_bidi_override_from_title():
 def test_parse_nitter_truncates_overlong_title():
     items = parse_nitter(_nitter_rss("x" * 1000))
     assert len(items[0].title) <= 500
+
+
+async def test_fetch_disables_redirects_for_untrusted_instances(fixtures_dir):
+    # Nitter instances are untrusted third parties; following their redirects
+    # turns the shared client into a blind-SSRF vector (e.g. a 302 to
+    # 169.254.169.254). The fetch must opt out of redirect-following.
+    text = (fixtures_dir / "nitter.xml").read_text()
+    client = FakeStreamClient(text)
+    since = datetime(2026, 6, 9, 6, 0, tzinfo=timezone.utc)
+    await TwitterSource().fetch(client, "quake", since)
+    _, _, kwargs = client.calls[0]
+    assert kwargs.get("follow_redirects") is False
 
 
 @pytest.mark.parametrize(
