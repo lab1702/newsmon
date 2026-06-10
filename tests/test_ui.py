@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
@@ -26,6 +26,19 @@ def test_format_row_prefixes_date_for_other_days():
                     datetime(2026, 6, 7, 11, 30, tzinfo=timezone.utc))
     _, when, _ = format_row(item, tz=timezone.utc, now=NOW)
     assert when == "06-07 11:30"
+
+
+def test_format_row_survives_out_of_range_timestamp():
+    # A far-future timestamp (e.g. from a hostile feed) overflows astimezone()
+    # for a user east of UTC. format_row runs in the shared render loop outside
+    # safe_fetch, so it must degrade rather than crash the whole TUI.
+    east = timezone(timedelta(hours=9))
+    item = NewsItem("gdelt", "Boom", "https://a/1",
+                    datetime(9999, 12, 31, 23, 59, 59, tzinfo=timezone.utc))
+    source, when, title = format_row(item, tz=east, now=NOW)
+    assert source == "gdelt"
+    assert title == "Boom"
+    assert when  # some non-empty timestamp string, no exception
 
 
 def test_render_sidebar_shows_health_and_counts():

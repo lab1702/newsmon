@@ -28,7 +28,14 @@ _HEALTH_ICONS = {Health.OK: "✅", Health.SLOW: "⚠️", Health.FAILED: "❌"}
 def format_row(
     item: NewsItem, tz: tzinfo, now: datetime | None = None
 ) -> tuple[str, str, str]:
-    local = item.published.astimezone(tz)
+    try:
+        local = item.published.astimezone(tz)
+    except (OverflowError, OSError, ValueError):
+        # A boundary-year timestamp (year 1 or 9999) that slipped past a parser
+        # overflows the local-zone conversion. format_row runs in the shared
+        # render loop outside safe_fetch, so fall back to the raw UTC value
+        # rather than let one hostile item crash the whole TUI.
+        local = item.published
     # Show only HH:MM for today's items; once the recency window (--hours) can
     # span more than a day, prefix the date so same-time items on different days
     # don't render identically.
