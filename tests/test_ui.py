@@ -4,16 +4,17 @@ from datetime import datetime, timezone
 
 from newsmon.health import Health, SourceResult
 from newsmon.models import NewsItem
-from newsmon.ui import SOURCE_ICONS, format_row, render_sidebar
+from newsmon.ui import format_row, render_sidebar
 
 NOW = datetime(2026, 6, 9, 12, 0, tzinfo=timezone.utc)
 
 
-def test_format_row():
+def test_format_row_uses_source_name():
     item = NewsItem("web", "Quake hits coast", "https://a/1",
                     datetime(2026, 6, 9, 11, 30, tzinfo=timezone.utc))
-    icon, when, title = format_row(item, tz=timezone.utc)
-    assert icon == SOURCE_ICONS["web"]
+    source, when, title = format_row(item, tz=timezone.utc)
+    # the stream's leading column shows the source name, matching the sidebar
+    assert source == "web"
     assert when == "11:30"
     assert title == "Quake hits coast"
 

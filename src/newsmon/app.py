@@ -54,7 +54,7 @@ class NewsmonApp(App):
         with Horizontal():
             yield Static(id="sidebar")
             table = DataTable(id="stream", cursor_type="row")
-            table.add_columns(" ", "time", "title")
+            table.add_columns("source", "time", "title")
             yield table
         yield Footer()
 
@@ -107,9 +107,9 @@ class NewsmonApp(App):
         table.clear()
         tz = datetime.now().astimezone().tzinfo
         for item in self.items:
-            icon, when, title = format_row(item, tz=tz)
+            source, when, title = format_row(item, tz=tz)
             cell = Text(title, style="bold yellow") if item.dedup_key in self._new_keys else title
-            table.add_row(icon, when, cell)
+            table.add_row(source, when, cell)
         self.query_one("#sidebar", Static).update(
             render_sidebar(results, self.new_count, self.enabled)
         )
