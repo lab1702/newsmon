@@ -4,6 +4,7 @@ import asyncio
 import json
 import re
 from datetime import datetime, timedelta, timezone
+from urllib.parse import quote
 
 from newsmon.models import NewsItem
 from newsmon.sources.base import fetch_text
@@ -117,7 +118,7 @@ def parse_youtube(html: str, now: datetime) -> list[NewsItem]:
             NewsItem(
                 source=NAME,
                 title=_text(vr, "title"),
-                url=f"https://www.youtube.com/watch?v={video_id}",
+                url=f"https://www.youtube.com/watch?v={quote(str(video_id), safe='')}",
                 published=published,
                 summary="",
                 extra={"channel": _text(vr, "ownerText")},

@@ -22,6 +22,29 @@ def test_parse_hackernews_null_hits_returns_no_items():
     assert parse_hackernews('{"hits": null}') == []
 
 
+def test_parse_hackernews_wrong_type_hits_returns_no_items():
+    # A truthy-but-wrong-type "hits" must not be iterated as a string and crash.
+    assert parse_hackernews('{"hits": "error"}') == []
+    assert parse_hackernews('{"hits": 7}') == []
+
+
+def test_parse_hackernews_non_dict_hit_is_skipped():
+    assert parse_hackernews('{"hits": ["x", null]}') == []
+
+
+def test_parse_hackernews_encodes_object_id_in_discussion_url():
+    # A corrupted/hostile objectID must be percent-encoded so it can't inject
+    # extra query params into the discussion URL.
+    text = (
+        '{"hits": [{"created_at": "2026-06-09T11:00:00Z", "title": "t",'
+        ' "objectID": "123&sort=controversial"}]}'
+    )
+    items = parse_hackernews(text)
+    assert items[0].extra["discussion"] == (
+        "https://news.ycombinator.com/item?id=123%26sort%3Dcontroversial"
+    )
+
+
 async def test_fetch_filters_by_since(fixtures_dir):
     text = (fixtures_dir / "hackernews.json").read_text()
     client = FakeStreamClient(text)
