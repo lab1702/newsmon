@@ -7,6 +7,7 @@ from conftest import FakeStreamClient
 from newsmon.health import Health
 from newsmon.models import NewsItem
 from newsmon.sources.base import (
+    MAX_ITEMS_PER_SOURCE,
     as_dict,
     as_list,
     clean_text,
@@ -39,6 +40,24 @@ class HangSource:
     async def fetch(self, client, topic, since):
         await asyncio.sleep(5)
         return []
+
+
+class FloodSource:
+    name = "flood"
+
+    async def fetch(self, client, topic, since):
+        # A hostile feed packs an 8MiB body with hundreds of thousands of tiny
+        # items; the byte cap bounds the response, not the item count.
+        return [NewsItem("flood", str(i), f"https://x/{i}", NOW)
+                for i in range(MAX_ITEMS_PER_SOURCE + 500)]
+
+
+async def test_safe_fetch_caps_item_count():
+    # One source must not be able to flood merge_items/_render (both on the UI
+    # event loop) with an unbounded item count and freeze the TUI.
+    r = await safe_fetch(FloodSource(), None, "quake", NOW, timeout=2, slow_after=10)
+    assert r.health is Health.OK
+    assert r.count == MAX_ITEMS_PER_SOURCE
 
 
 async def test_safe_fetch_ok():

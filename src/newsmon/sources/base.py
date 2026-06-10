@@ -110,6 +110,14 @@ class Source(Protocol):
     async def fetch(self, client, topic: str, since: datetime) -> list[NewsItem]: ...
 
 
+# The 8 MiB response cap bounds bytes, not item count: ~150k tiny RSS entries
+# fit inside it. Without a count cap a single hostile/compromised source can
+# flood merge_items (sort) and _render (one row each), both on the single UI
+# event loop, freezing the whole TUI every poll. This sits far above any
+# realistic per-source result for the recency window.
+MAX_ITEMS_PER_SOURCE = 200
+
+
 async def safe_fetch(
     source: Source,
     client,
@@ -128,4 +136,5 @@ async def safe_fetch(
         return SourceResult(source.name, [], Health.FAILED, repr(exc), elapsed)
     elapsed = loop.time() - start
     health = Health.SLOW if elapsed > slow_after else Health.OK
-    return SourceResult(source.name, items, health, None, elapsed)
+    # Bound one source's contribution so it can't flood the UI event loop.
+    return SourceResult(source.name, items[:MAX_ITEMS_PER_SOURCE], health, None, elapsed)
